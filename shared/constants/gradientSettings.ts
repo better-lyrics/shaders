@@ -10,6 +10,7 @@ export interface GradientSettings {
   audioResponsive: boolean;
   audioSpeedMultiplier: number;
   audioScaleBoost: number;
+  showLogs: boolean;
 }
 
 export interface DynamicMultipliers {
@@ -29,6 +30,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioResponsive: true,
   audioSpeedMultiplier: 4,
   audioScaleBoost: 1,
+  showLogs: false,
 };
 
 export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {

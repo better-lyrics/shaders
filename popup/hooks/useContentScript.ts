@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { GradientSettings } from '../types';
+import { useEffect, useState, useCallback } from "react";
+import { GradientSettings } from "../types";
 
 interface ContentData {
   colors: string[];
@@ -11,8 +11,8 @@ interface ContentData {
 export const useContentScript = () => {
   const [data, setData] = useState<ContentData>({
     colors: [],
-    songTitle: '',
-    songAuthor: '',
+    songTitle: "",
+    songAuthor: "",
     gradientSettings: {} as GradientSettings,
   });
 
@@ -28,24 +28,30 @@ export const useContentScript = () => {
   }, []);
 
   const loadCurrentData = useCallback(async () => {
-    const response = await sendMessage('getCurrentData');
+    const response = await sendMessage("getCurrentData");
     if (response) {
       setData({
         colors: response.colors || [],
-        songTitle: response.songTitle || '',
-        songAuthor: response.songAuthor || '',
+        songTitle: response.songTitle || "",
+        songAuthor: response.songAuthor || "",
         gradientSettings: response.gradientSettings || {},
       });
     }
   }, [sendMessage]);
 
-  const updateColors = useCallback(async (colors: string[]) => {
-    await sendMessage('updateColors', { colors });
-  }, [sendMessage]);
+  const updateColors = useCallback(
+    async (colors: string[]) => {
+      await sendMessage("updateColors", { colors });
+    },
+    [sendMessage]
+  );
 
-  const updateGradientSettings = useCallback(async (settings: GradientSettings) => {
-    await sendMessage('updateGradientSettings', { settings });
-  }, [sendMessage]);
+  const updateGradientSettings = useCallback(
+    async (settings: GradientSettings) => {
+      await sendMessage("updateGradientSettings", { settings });
+    },
+    [sendMessage]
+  );
 
   useEffect(() => {
     loadCurrentData();

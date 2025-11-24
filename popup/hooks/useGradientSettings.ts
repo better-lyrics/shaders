@@ -66,17 +66,17 @@ export const useGradientSettings = () => {
     const settingsData = {
       version: "1.0",
       settings: localSettings,
-      exportedAt: new Date().toISOString()
+      exportedAt: new Date().toISOString(),
     };
-    
+
     const blob = new Blob([JSON.stringify(settingsData, null, 2)], {
-      type: 'application/json'
+      type: "application/json",
     });
-    
+
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `better-lyrics-shaders-settings-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `better-lyrics-shaders-settings-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -84,62 +84,70 @@ export const useGradientSettings = () => {
   }, [localSettings]);
 
   const importSettings = useCallback((): Promise<GradientSettings | null> => {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      
-      input.onchange = async (e) => {
+    return new Promise(resolve => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json";
+
+      input.onchange = async e => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) {
           resolve(null);
           return;
         }
-        
+
         try {
           const text = await file.text();
           const data = JSON.parse(text);
-          
-          if (data.settings && typeof data.settings === 'object') {
+
+          if (data.settings && typeof data.settings === "object") {
             // Validate that all required keys exist
             const requiredKeys: (keyof GradientSettings)[] = [
-              'distortion', 'swirl', 'offsetX', 'offsetY', 
-              'scale', 'rotation', 'speed', 'opacity',
-              'audioResponsive', 'audioSpeedMultiplier', 'audioScaleBoost'
+              "distortion",
+              "swirl",
+              "offsetX",
+              "offsetY",
+              "scale",
+              "rotation",
+              "speed",
+              "opacity",
+              "audioResponsive",
+              "audioSpeedMultiplier",
+              "audioScaleBoost",
             ];
-            
+
             const isValid = requiredKeys.every(key => {
-              if (key === 'audioResponsive') {
-                return typeof data.settings[key] === 'boolean';
+              if (key === "audioResponsive") {
+                return typeof data.settings[key] === "boolean";
               }
-              return typeof data.settings[key] === 'number';
+              return typeof data.settings[key] === "number";
             });
-            
+
             if (isValid) {
               // Clear any pending debounced updates
               if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
               }
-              
+
               // Update both local and stored settings immediately
               setLocalSettings(data.settings);
               await setStoredSettings(data.settings);
               resolve(data.settings);
             } else {
-              alert('Invalid settings file format');
+              alert("Invalid settings file format");
               resolve(null);
             }
           } else {
-            alert('Invalid settings file format');
+            alert("Invalid settings file format");
             resolve(null);
           }
         } catch (error) {
-          alert('Error reading settings file');
-          console.error('Import error:', error);
+          alert("Error reading settings file");
+          console.error("Import error:", error);
           resolve(null);
         }
       };
-      
+
       input.click();
     });
   }, [setStoredSettings]);

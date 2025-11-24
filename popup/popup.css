@@ -1,16 +1,24 @@
-:root{
-	--font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+:root {
+  --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
 }
 
 body {
+  background: rgb(11, 11, 11);
   margin: 0;
-  font-family: "Avenir Next", "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    "Avenir Next",
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
 }
 
 .popup-container {
   width: 456px;
   padding: 0;
-  background: rgb(11,11,11);
   color: white;
   min-height: 500px;
   display: flex;
@@ -18,9 +26,9 @@ body {
 }
 
 .header {
-	display: flex;
-	flex-direction: column;
-	align-items:center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 20px 20px 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -32,7 +40,7 @@ body {
 }
 
 .tab {
-	width: fit-content;
+  width: fit-content;
   padding: 8px 20px;
   background: none;
   border: none;
@@ -65,21 +73,25 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.logo{
-	height: 20px;
-	width: 20px;
-	margin-top: -2px;
+.logo {
+  height: 20px;
+  width: 20px;
+  margin-top: -2px;
 }
 
-.title{
-	display: flex;
-	align-items:center;
-	justify-content: center;
-	gap:8px;
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin: 0;
   font-size: 20px;
   font-weight: 600;
@@ -87,26 +99,26 @@ body {
 }
 
 .song-title {
-	display:flex;
-	gap: 4px;
-	align-items: center;
-	justify-content: center;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);
   margin: 0;
-	margin-top: 6px;
+  margin-top: 6px;
   max-height: 2.6em;
   overflow: hidden;
   text-overflow: ellipsis;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-	max-width: 300px;
-	overflow:hidden;
+  max-width: 300px;
+  overflow: hidden;
 }
 
-.song-title svg{
-	flex-shrink: 0;
+.song-title svg {
+  flex-shrink: 0;
 }
 
 .content {
@@ -135,7 +147,7 @@ body {
 .color-picker {
   width: 40px;
   height: 40px;
-	margin-top:2px;
+  margin-top: 2px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
   background: none;
@@ -227,8 +239,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-	padding: 12px;
-	background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .control-header {
@@ -242,33 +254,33 @@ body {
   font-weight: 500;
   text-transform: uppercase;
   margin: 0;
-	display: flex;
-	flex-direction: column;
-	width: 100%;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-.control-label__title{
-	display: flex;
-	gap: 4px;
-	align-items: flex-start;
-	justify-content: space-between;
-	width: 100%;
-	font-size: 10px;
+.control-label__title {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 10px;
 }
 
-.control-label__title-fixed{
-	display: flex;
-	align-items: center;
-	gap:4px;
-	justify-content: center;
-	opacity: 0.5;
+.control-label__title-fixed {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  opacity: 0.5;
 }
 
-.control-label__body{
-	margin-left:auto;
-	font-size: 14px;
-	font-family: var(--font-mono);
-	font-variant-numeric: tabular-nums;
+.control-label__body {
+  margin-left: auto;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .reset-icon {
@@ -283,7 +295,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-	margin-bottom: 1px;
+  margin-bottom: 1px;
 }
 
 .reset-icon:hover {
@@ -311,15 +323,19 @@ body {
   appearance: none;
   width: 14px;
   height: 14px;
-  background-color: rgba(150, 150, 150,1);
+  background-color: rgba(150, 150, 150, 1);
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	transition: color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.control-slider::-webkit-slider-thumb:active{
-	background-color: rgba(255,255,255,0.8);
-	transform: scale(1.5);
+.control-slider::-webkit-slider-thumb:active {
+  background-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.5);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 1);
 }
 
@@ -337,8 +353,8 @@ body {
   gap: 8px;
   margin-top: 24px;
   margin-bottom: 4px;
-	display: grid;
-	grid-template-columns: 1fr 1fr 2fr;
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
 }
 
 .action-button {
@@ -396,7 +412,7 @@ body {
   width: 36px;
   height: 18px;
   background: rgba(255, 255, 255, 0.1);
-	border: none;
+  border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
