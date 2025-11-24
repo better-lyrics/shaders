@@ -11,6 +11,7 @@ export interface GradientSettings {
   audioSpeedMultiplier: number;
   audioScaleBoost: number;
   showLogs: boolean;
+  boostDullColors: boolean;
 }
 
 export interface DynamicMultipliers {
@@ -31,6 +32,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioSpeedMultiplier: 4,
   audioScaleBoost: 1,
   showLogs: false,
+  boostDullColors: true,
 };
 
 export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {

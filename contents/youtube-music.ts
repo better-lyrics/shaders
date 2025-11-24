@@ -54,12 +54,18 @@ const updateGradientColors = async (colors: string[]): Promise<void> => {
 
 const updateGradientSettings = (settings: GradientSettings): void => {
   const wasAudioResponsive = gradientSettings.audioResponsive;
+  const wasBoostDullColors = gradientSettings.boostDullColors;
   gradientSettings = settings;
 
   logger.setEnabled(settings.showLogs);
 
   if (wasAudioResponsive !== settings.audioResponsive) {
     handleAudioResponsiveToggle();
+  }
+
+  if (wasBoostDullColors !== settings.boostDullColors) {
+    lastImageSrc = "";
+    extractAndUpdateColors();
   }
 
   if (shaderManager.hasShader()) {
@@ -69,7 +75,7 @@ const updateGradientSettings = (settings: GradientSettings): void => {
 
 const extractAndUpdateColors = async (): Promise<void> => {
   logger.log("Extracting colors from album art...");
-  const result = await colorExtraction.extractColorsFromAlbumArt();
+  const result = await colorExtraction.extractColorsFromAlbumArt(gradientSettings.boostDullColors);
 
   if (!result) {
     logger.log("No album art found");

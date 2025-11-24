@@ -48,9 +48,36 @@ const manageCacheSize = () => {
   }
 };
 
-export const extractColorsFromImage = async (img: HTMLImageElement): Promise<string[]> => {
-  if (imageCache.has(img.src)) {
-    return imageCache.get(img.src)!;
+const boostDullColorSaturation = (hslColors: Array<{ hue: number; saturation: number; lightness: number }>): Array<{ hue: number; saturation: number; lightness: number }> => {
+  const maxSaturation = Math.max(...hslColors.map(c => c.saturation));
+
+  if (maxSaturation < 40) {
+    return hslColors;
+  }
+
+  const nonGrayscaleColors = hslColors.filter(c => c.saturation > 5);
+  const avgHue = nonGrayscaleColors.length > 0
+    ? nonGrayscaleColors.reduce((sum, c) => sum + c.hue, 0) / nonGrayscaleColors.length
+    : 0;
+
+  return hslColors.map(color => {
+    if (color.saturation < 40) {
+      const targetHue = color.saturation < 5 ? avgHue : color.hue;
+      const boostedSaturation = Math.min(color.saturation * 1.5 + 20, 70);
+      return { hue: targetHue, saturation: boostedSaturation, lightness: color.lightness };
+    }
+    return color;
+  });
+};
+
+export const extractColorsFromImage = async (
+  img: HTMLImageElement,
+  boostDullColors: boolean = true
+): Promise<string[]> => {
+  const cacheKey = `${img.src}_${boostDullColors}`;
+
+  if (imageCache.has(cacheKey)) {
+    return imageCache.get(cacheKey)!;
   }
 
   // Skip data URI placeholders (1x1 transparent GIFs, etc)
@@ -124,16 +151,23 @@ export const extractColorsFromImage = async (img: HTMLImageElement): Promise<str
           }
 
           const colorsWithPrimary = [primaryColor, ...validColors];
-          const colorsHsl = colorsWithPrimary
+          let colorsHslObjects = colorsWithPrimary
             .filter(color => color && Array.isArray(color) && color.length >= 3)
             .map(color => {
               const [r, g, b] = color;
-              const { hue, saturation, lightness } = rgbToHsl(r, g, b);
-              return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+              return rgbToHsl(r, g, b);
             });
 
+          if (boostDullColors) {
+            colorsHslObjects = boostDullColorSaturation(colorsHslObjects);
+          }
+
+          const colorsHsl = colorsHslObjects.map(
+            ({ hue, saturation, lightness }) => `hsl(${hue}, ${saturation}%, ${lightness}%)`
+          );
+
           manageCacheSize();
-          imageCache.set(img.src, colorsHsl);
+          imageCache.set(cacheKey, colorsHsl);
 
           URL.revokeObjectURL(imageUrl);
           resolve(colorsHsl);
@@ -158,7 +192,9 @@ export const extractColorsFromImage = async (img: HTMLImageElement): Promise<str
   }
 };
 
-export const extractColorsFromAlbumArt = async (): Promise<{
+export const extractColorsFromAlbumArt = async (
+  boostDullColors: boolean = true
+): Promise<{
   colors: string[];
   imageSrc: string;
 } | null> => {
@@ -172,7 +208,7 @@ export const extractColorsFromAlbumArt = async (): Promise<{
   logger.log("Extracting colors from new image:", coverImage.src);
 
   try {
-    const colors = await extractColorsFromImage(coverImage);
+    const colors = await extractColorsFromImage(coverImage, boostDullColors);
     logger.log("Extracted colors:", colors);
 
     return {

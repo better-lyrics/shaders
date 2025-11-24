@@ -12,6 +12,7 @@ export const ColorRow: React.FC<ColorRowProps> = ({ color, index, onColorChange 
     <div className="color-row">
       <div className="color-preview">
         <input
+          key={color}
           type="color"
           value={hslToHex(color)}
           onChange={e => onColorChange(index, hexToHsl(e.target.value))}

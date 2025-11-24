@@ -21,7 +21,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
   onImport,
 }) => {
   const handleReset = (key: keyof GradientSettings) => {
-    if (key === "audioResponsive" || key === "showLogs") {
+    if (key === "audioResponsive" || key === "showLogs" || key === "boostDullColors") {
       onToggleChange(key, defaultSettings[key] as boolean);
     } else {
       onSettingChange(key, defaultSettings[key] as number);
@@ -39,6 +39,12 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
           />
 
           <ControlToggle
+            label="Boost Dull Colors"
+            value={settings.boostDullColors}
+            onChange={value => onToggleChange("boostDullColors", value)}
+          />
+
+          <ControlToggle
             label="Show Logs"
             value={settings.showLogs}
             onChange={value => onToggleChange("showLogs", value)}
@@ -46,7 +52,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
 
           {Object.entries(settings)
             .filter(
-              ([key]) => !["audioResponsive", "audioSpeedMultiplier", "audioScaleBoost", "showLogs"].includes(key)
+              ([key]) => !["audioResponsive", "audioSpeedMultiplier", "audioScaleBoost", "showLogs", "boostDullColors"].includes(key)
             )
             .map(([key, value]) => (
               <ControlSlider
