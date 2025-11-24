@@ -1,5 +1,5 @@
-import React from 'react';
-import { hslToHex, hexToHsl } from '../utils';
+import React from "react";
+import { hslToHex, hexToHsl } from "../utils";
 
 interface ColorRowProps {
   color: string;
@@ -12,9 +12,10 @@ export const ColorRow: React.FC<ColorRowProps> = ({ color, index, onColorChange 
     <div className="color-row">
       <div className="color-preview">
         <input
+          key={color}
           type="color"
           value={hslToHex(color)}
-          onChange={(e) => onColorChange(index, hexToHsl(e.target.value))}
+          onChange={e => onColorChange(index, hexToHsl(e.target.value))}
           className="color-picker"
         />
       </div>
@@ -22,7 +23,7 @@ export const ColorRow: React.FC<ColorRowProps> = ({ color, index, onColorChange 
         <input
           type="text"
           value={color}
-          onChange={(e) => {
+          onChange={e => {
             if (e.target.value.match(/hsl\(\d+,\s*\d+%,\s*\d+%\)/)) {
               onColorChange(index, e.target.value);
             }

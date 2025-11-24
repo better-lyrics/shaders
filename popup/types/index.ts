@@ -1,6 +1,6 @@
-export { 
-  type GradientSettings, 
-  DEFAULT_GRADIENT_SETTINGS as defaultSettings 
+export {
+  type GradientSettings,
+  DEFAULT_GRADIENT_SETTINGS as defaultSettings,
 } from "../../shared/constants/gradientSettings";
 
-export type TabType = 'colors' | 'controls';
+export type TabType = "colors" | "controls";

@@ -7,11 +7,11 @@ export const capitalizeFirst = (str: string): string => {
 
 export const getControlLabel = (key: string): string => {
   const labels: Record<string, string> = {
-    audioSpeedMultiplier: 'Beat Speed Multiplier',
-    audioScaleBoost: 'Beat Scale Boost',
-    offsetX: 'Offset X',
-    offsetY: 'Offset Y'
+    audioSpeedMultiplier: "Beat Speed Multiplier",
+    audioScaleBoost: "Beat Scale Boost",
+    offsetX: "Offset X",
+    offsetY: "Offset Y",
   };
-  
+
   return labels[key] || capitalizeFirst(key);
 };

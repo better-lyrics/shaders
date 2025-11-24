@@ -1,6 +1,6 @@
-import React from 'react';
-import { ColorRow } from '../ColorRow';
-import { EmptyState } from '../EmptyState';
+import React from "react";
+import { ColorRow } from "../ColorRow";
+import { EmptyState } from "../EmptyState";
 
 interface ColorsTabProps {
   colors: string[];
@@ -14,12 +14,7 @@ export const ColorsTab: React.FC<ColorsTabProps> = ({ colors, onColorChange }) =
         <div className="colors-section">
           <div className="colors-grid">
             {colors.map((color, index) => (
-              <ColorRow
-                key={index}
-                color={color}
-                index={index}
-                onColorChange={onColorChange}
-              />
+              <ColorRow key={index} color={color} index={index} onColorChange={onColorChange} />
             ))}
           </div>
         </div>
