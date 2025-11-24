@@ -35,10 +35,10 @@ export const setupMessageListener = (handlers: MessageHandlers): void => {
 
 export const getSongInfo = (): { title: string; author: string } => {
   const songTitleElement = document.querySelector(".title.style-scope.ytmusic-player-bar");
-  const songTitle = songTitleElement ? songTitleElement.textContent : "";
+  const songTitle = songTitleElement?.textContent ?? "";
 
   const songAuthorElement = document.querySelector(".subtitle.style-scope.ytmusic-player-bar");
-  const songAuthor = songAuthorElement ? songAuthorElement.textContent.split("•")[0] : "";
+  const songAuthor = songAuthorElement?.textContent?.split("•")[0] ?? "";
 
   return {
     title: songTitle,

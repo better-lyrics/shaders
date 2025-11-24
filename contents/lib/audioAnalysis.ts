@@ -91,15 +91,13 @@ const analyzeAudioFrame = (
 
     const isBeat = peak > 0.75;
 
-    if (isBeat || state.lastAnalysisTime === 0) {
-      const speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
-      const scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
+    const speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
+    const scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
 
-      onBeatDetected({
-        speedMultiplier,
-        scaleMultiplier,
-      });
-    }
+    onBeatDetected({
+      speedMultiplier,
+      scaleMultiplier,
+    });
 
     state.lastAnalysisTime = timestamp;
   }
