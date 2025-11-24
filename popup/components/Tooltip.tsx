@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  useFloating,
-  offset,
-  flip,
-  shift,
-  autoUpdate,
-} from "@floating-ui/react";
+import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 
 interface TooltipProps {
   content: string;
@@ -41,11 +35,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
       </div>
       {visible &&
         createPortal(
-          <div
-            ref={refs.setFloating}
-            style={floatingStyles}
-            className="tooltip tooltip--visible"
-          >
+          <div ref={refs.setFloating} style={floatingStyles} className="tooltip tooltip--visible">
             {content}
           </div>,
           document.body

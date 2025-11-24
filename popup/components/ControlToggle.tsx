@@ -8,12 +8,7 @@ interface ControlToggleProps {
   hint?: string;
 }
 
-export const ControlToggle: React.FC<ControlToggleProps> = ({
-  label,
-  value,
-  onChange,
-  hint,
-}) => {
+export const ControlToggle: React.FC<ControlToggleProps> = ({ label, value, onChange, hint }) => {
   const handleToggle = () => {
     onChange(!value);
   };
