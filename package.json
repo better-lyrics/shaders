@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.16",
     "@paper-design/shaders": "0.0.65",
     "@plasmohq/storage": "^1.9.0",
     "colorthief": "^2.6.0",

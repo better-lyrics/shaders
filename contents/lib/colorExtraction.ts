@@ -48,17 +48,23 @@ const manageCacheSize = () => {
   }
 };
 
-const boostDullColorSaturation = (hslColors: Array<{ hue: number; saturation: number; lightness: number }>): Array<{ hue: number; saturation: number; lightness: number }> => {
-  const maxSaturation = Math.max(...hslColors.map(c => c.saturation));
+const boostDullColorSaturation = (
+  hslColors: Array<{ hue: number; saturation: number; lightness: number }>
+): Array<{ hue: number; saturation: number; lightness: number }> => {
+  // Count how many colors have decent saturation (>= 30%)
+  const vibrantColors = hslColors.filter(c => c.saturation >= 30).length;
+  const vibrantRatio = vibrantColors / hslColors.length;
 
-  if (maxSaturation < 40) {
+  // Only boost if majority (>= 50%) of colors are vibrant
+  if (vibrantRatio < 0.5) {
     return hslColors;
   }
 
   const nonGrayscaleColors = hslColors.filter(c => c.saturation > 5);
-  const avgHue = nonGrayscaleColors.length > 0
-    ? nonGrayscaleColors.reduce((sum, c) => sum + c.hue, 0) / nonGrayscaleColors.length
-    : 0;
+  const avgHue =
+    nonGrayscaleColors.length > 0
+      ? nonGrayscaleColors.reduce((sum, c) => sum + c.hue, 0) / nonGrayscaleColors.length
+      : 0;
 
   return hslColors.map(color => {
     if (color.saturation < 40) {
@@ -114,8 +120,8 @@ export const extractColorsFromImage = async (
           let colors, primaryColor;
 
           try {
-            colors = colorThief.getPalette(proxyImg, 5);
-            primaryColor = colorThief.getColor(proxyImg);
+            colors = colorThief.getPalette(proxyImg, 5, 1);
+            primaryColor = colorThief.getColor(proxyImg, 1);
           } catch (err) {
             logger.error("ColorThief method call failed:", err);
             URL.revokeObjectURL(imageUrl);
@@ -163,7 +169,8 @@ export const extractColorsFromImage = async (
           }
 
           const colorsHsl = colorsHslObjects.map(
-            ({ hue, saturation, lightness }) => `hsl(${hue}, ${saturation}%, ${lightness}%)`
+            ({ hue, saturation, lightness }) =>
+              `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`
           );
 
           manageCacheSize();
