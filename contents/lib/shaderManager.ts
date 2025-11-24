@@ -1,5 +1,12 @@
-import { ShaderMount, meshGradientFragmentShader, getShaderColorFromString } from "@paper-design/shaders";
-import type { DynamicMultipliers, GradientSettings } from "../../shared/constants/gradientSettings";
+import {
+  ShaderMount,
+  meshGradientFragmentShader,
+  getShaderColorFromString,
+} from "@paper-design/shaders";
+import type {
+  DynamicMultipliers,
+  GradientSettings,
+} from "../../shared/constants/gradientSettings";
 
 interface ShaderState {
   container: HTMLDivElement | null;
@@ -55,7 +62,7 @@ const buildMeshGradientUniforms = (
 };
 
 const waitForPlayerPageReady = async (): Promise<boolean> => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const checkReady = () => {
       const playerPage = document.getElementById("player-page");
       const hasContent = playerPage && playerPage.children.length > 0;
@@ -102,6 +109,7 @@ export const createShader = async (
     z-index: 0;
     opacity: 0;
     will-change: opacity;
+		transition: opacity 0.5s ease-out;
   `;
 
   playerPage.insertBefore(state.container, playerPage.firstChild);
@@ -111,15 +119,24 @@ export const createShader = async (
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
-  const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
+  const uniforms = buildMeshGradientUniforms(
+    state.colorVectors,
+    settings,
+    multipliers
+  );
   const speed = settings.speed * multipliers.speedMultiplier;
 
-  state.mount = new ShaderMount(state.container, meshGradientFragmentShader, uniforms as any, undefined, speed);
+  state.mount = new ShaderMount(
+    state.container,
+    meshGradientFragmentShader,
+    uniforms as any,
+    undefined,
+    speed
+  );
 
   requestAnimationFrame(() => {
     if (state.container) {
       state.container.style.opacity = settings.opacity.toString();
-      state.container.style.transition = "opacity 0.3s ease-in-out";
     }
   });
 
@@ -155,26 +172,43 @@ export const updateShaderColors = (
     state.colorVectors = colors.map(getCachedColorVector);
   }
 
-  const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
+  const uniforms = buildMeshGradientUniforms(
+    state.colorVectors,
+    settings,
+    multipliers
+  );
   state.mount.setUniforms(uniforms as any);
 
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
-  if (state.container && state.container.style.opacity !== settings.opacity.toString()) {
+  if (
+    state.container &&
+    state.container.style.opacity !== settings.opacity.toString()
+  ) {
     state.container.style.opacity = settings.opacity.toString();
   }
 };
 
-export const updateShaderSettings = (settings: GradientSettings, multipliers: DynamicMultipliers): void => {
-  if (!state.mount || !state.container || state.colorVectors.length === 0) return;
+export const updateShaderSettings = (
+  settings: GradientSettings,
+  multipliers: DynamicMultipliers
+): void => {
+  if (!state.mount || !state.container || state.colorVectors.length === 0)
+    return;
 
-  const settingsChanged = JSON.stringify(settings) !== JSON.stringify(state.lastSettings);
-  const multipliersChanged = JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
+  const settingsChanged =
+    JSON.stringify(settings) !== JSON.stringify(state.lastSettings);
+  const multipliersChanged =
+    JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
 
   if (!settingsChanged && !multipliersChanged) return;
 
-  const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
+  const uniforms = buildMeshGradientUniforms(
+    state.colorVectors,
+    settings,
+    multipliers
+  );
   const speed = settings.speed * multipliers.speedMultiplier;
 
   state.mount.setUniforms(uniforms as any);
@@ -183,7 +217,10 @@ export const updateShaderSettings = (settings: GradientSettings, multipliers: Dy
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
-  if (state.container && state.container.style.opacity !== settings.opacity.toString()) {
+  if (
+    state.container &&
+    state.container.style.opacity !== settings.opacity.toString()
+  ) {
     state.container.style.opacity = settings.opacity.toString();
   }
 };
@@ -197,8 +234,10 @@ export const getCurrentColors = (): string[] => {
 };
 
 export const cleanupOrphanedGradients = (): void => {
-  const existingGradients = document.querySelectorAll("#better-lyrics-gradient");
-  existingGradients.forEach(gradient => gradient.remove());
+  const existingGradients = document.querySelectorAll(
+    "#better-lyrics-gradient"
+  );
+  existingGradients.forEach((gradient) => gradient.remove());
 };
 
 export const clearColorVectorCache = (): void => {
