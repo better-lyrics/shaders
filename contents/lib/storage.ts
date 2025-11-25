@@ -10,13 +10,17 @@ import { logger } from "../../shared/utils/logger";
 export interface AlbumData {
   colors: string[];
   colorsManuallyModified?: boolean;
+  lastAccessed?: number;
 }
 
 interface AlbumSettings {
   [albumArtUrl: string]: AlbumData;
 }
 
+const MAX_STORED_ALBUMS = 50;
+
 const storage = new Storage();
+const albumStorage = new Storage({ area: "local" });
 
 export const loadGradientSettings = async (): Promise<GradientSettings> => {
   try {
@@ -53,9 +57,8 @@ const generateAlbumKey = (albumArtUrl: string): string => {
 
 export const loadAlbumSettings = async (albumArtUrl: string): Promise<AlbumData | null> => {
   try {
-    const allAlbumSettings = await storage.get<AlbumSettings>(ALBUM_SETTINGS_STORAGE_KEY);
+    const allAlbumSettings = await albumStorage.get<AlbumSettings>(ALBUM_SETTINGS_STORAGE_KEY);
     if (!allAlbumSettings) {
-      logger.log("No album settings found in storage");
       return null;
     }
 
@@ -63,12 +66,9 @@ export const loadAlbumSettings = async (albumArtUrl: string): Promise<AlbumData 
     const albumData = allAlbumSettings[albumKey];
 
     if (albumData) {
-      logger.log(`Loaded album data for: ${albumKey}`, {
-        colorCount: albumData.colors?.length || 0,
-        colorsManuallyModified: albumData.colorsManuallyModified || false,
-      });
-    } else {
-      logger.log(`No saved data for album: ${albumKey}`);
+      albumData.lastAccessed = Date.now();
+      allAlbumSettings[albumKey] = albumData;
+      albumStorage.set(ALBUM_SETTINGS_STORAGE_KEY, allAlbumSettings);
     }
 
     return albumData || null;
@@ -78,13 +78,25 @@ export const loadAlbumSettings = async (albumArtUrl: string): Promise<AlbumData 
   }
 };
 
+const evictOldestAlbums = (albumSettings: AlbumSettings): AlbumSettings => {
+  const entries = Object.entries(albumSettings);
+  if (entries.length <= MAX_STORED_ALBUMS) {
+    return albumSettings;
+  }
+
+  entries.sort((a, b) => (a[1].lastAccessed || 0) - (b[1].lastAccessed || 0));
+
+  const toKeep = entries.slice(entries.length - MAX_STORED_ALBUMS);
+  return Object.fromEntries(toKeep);
+};
+
 export const saveAlbumColors = async (
   albumArtUrl: string,
   colors: string[],
   colorsManuallyModified: boolean = false
 ): Promise<void> => {
   try {
-    const allAlbumSettings = (await storage.get<AlbumSettings>(ALBUM_SETTINGS_STORAGE_KEY)) || {};
+    let allAlbumSettings = (await albumStorage.get<AlbumSettings>(ALBUM_SETTINGS_STORAGE_KEY)) || {};
     const albumKey = generateAlbumKey(albumArtUrl);
 
     const existingData = allAlbumSettings[albumKey];
@@ -93,15 +105,12 @@ export const saveAlbumColors = async (
     allAlbumSettings[albumKey] = {
       colors: colors,
       colorsManuallyModified: wasManuallyModified,
+      lastAccessed: Date.now(),
     };
 
-    await storage.set(ALBUM_SETTINGS_STORAGE_KEY, allAlbumSettings);
+    allAlbumSettings = evictOldestAlbums(allAlbumSettings);
 
-    logger.log(`Saved album colors for: ${albumKey}`, {
-      colorCount: colors.length,
-      colors: colors,
-      colorsManuallyModified: wasManuallyModified,
-    });
+    await albumStorage.set(ALBUM_SETTINGS_STORAGE_KEY, allAlbumSettings);
   } catch (error) {
     logger.error("Error saving album colors to storage:", error);
   }
@@ -109,8 +118,7 @@ export const saveAlbumColors = async (
 
 export const clearAllAlbumSettings = async (): Promise<void> => {
   try {
-    await storage.remove(ALBUM_SETTINGS_STORAGE_KEY);
-    logger.log("Cleared all album-specific settings");
+    await albumStorage.remove(ALBUM_SETTINGS_STORAGE_KEY);
   } catch (error) {
     logger.error("Error clearing album-specific settings:", error);
   }

@@ -169,10 +169,11 @@ export const createShader = async (
       transition: opacity 0.5s ease-out;
     `
     : `
+			--sidebar: 240px;
       position: absolute;
       top: -64px;
-      left: -72px;
-      width: calc(100% + 72px);
+      left: calc(-1 * var(--sidebar));
+      width: calc(100% + var(--sidebar));
       height: calc(100% + 128px);
       pointer-events: none;
       z-index: 0;
