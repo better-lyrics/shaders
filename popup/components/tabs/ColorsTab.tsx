@@ -33,7 +33,10 @@ export const ColorsTab: React.FC<ColorsTabProps> = ({ colors, onColorChange, onC
   const handlePasteColors = async () => {
     console.log("Paste colors clicked, input:", pasteInput);
 
-    const lines = pasteInput.trim().split("\n").filter(line => line.trim());
+    const lines = pasteInput
+      .trim()
+      .split("\n")
+      .filter(line => line.trim());
     console.log("Parsed lines:", lines);
 
     const validColors = lines.filter(line => {
@@ -90,11 +93,7 @@ export const ColorsTab: React.FC<ColorsTabProps> = ({ colors, onColorChange, onC
               COPY PALETTE
             </button>
 
-            <button
-              onClick={() => setShowPasteInput(!showPasteInput)}
-              className="action-button"
-              title="Paste Colors"
-            >
+            <button onClick={() => setShowPasteInput(!showPasteInput)} className="action-button" title="Paste Colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
                 <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                   <path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z" />
@@ -110,7 +109,7 @@ export const ColorsTab: React.FC<ColorsTabProps> = ({ colors, onColorChange, onC
               <textarea
                 className="paste-input"
                 value={pasteInput}
-                onChange={(e) => setPasteInput(e.target.value)}
+                onChange={e => setPasteInput(e.target.value)}
                 placeholder="Paste colors here (one per line)&#10;e.g. hsl(227, 37%, 22%)"
                 rows={5}
               />

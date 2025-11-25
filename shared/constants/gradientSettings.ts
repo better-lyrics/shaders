@@ -12,7 +12,7 @@ export interface GradientSettings {
   audioScaleBoost: number;
   showLogs: boolean;
   boostDullColors: boolean;
-  showOnHomepage: boolean;
+  showOnBrowsePages: boolean;
   rememberAlbumSettings: boolean;
   vibrantSaturationThreshold: number;
   vibrantRatioThreshold: number;
@@ -38,7 +38,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioScaleBoost: 1,
   showLogs: false,
   boostDullColors: true,
-  showOnHomepage: false,
+  showOnBrowsePages: false,
   rememberAlbumSettings: false,
   vibrantSaturationThreshold: 30,
   vibrantRatioThreshold: 50,

@@ -64,12 +64,12 @@ const boostDullColorSaturation = (
     vibrantColors,
     totalColors: hslColors.length,
     vibrantRatio: (vibrantRatio * 100).toFixed(1) + "%",
-    threshold: (ratioThreshold * 100) + "%",
-    willBoost: vibrantRatio >= ratioThreshold
+    threshold: ratioThreshold * 100 + "%",
+    willBoost: vibrantRatio <= ratioThreshold,
   });
 
-  if (vibrantRatio < ratioThreshold) {
-    logger.log("Not boosting - vibrant ratio below threshold");
+  if (vibrantRatio > ratioThreshold) {
+    logger.log("Not boosting - palette already vibrant enough");
     return hslColors;
   }
 
@@ -80,7 +80,7 @@ const boostDullColorSaturation = (
       : 0;
 
   const dullThreshold = 40;
-  const multiplier = 1 + (intensity * 0.5);
+  const multiplier = 1 + intensity * 0.5;
   const addition = intensity * 0.4;
   const cap = 70;
 
@@ -140,7 +140,7 @@ export const extractColorsFromImage = async (
           let colors, primaryColor;
 
           try {
-            colors = colorThief.getPalette(proxyImg, 5, 1);
+            colors = colorThief.getPalette(proxyImg, 4, 1);
             primaryColor = colorThief.getColor(proxyImg, 1);
           } catch (err) {
             logger.error("ColorThief method call failed:", err);
@@ -219,6 +219,90 @@ export const extractColorsFromImage = async (
   }
 };
 
+const getVideoIdFromUrl = (): string | null => {
+  const url = new URL(window.location.href);
+  return url.searchParams.get("v");
+};
+
+const createImageFromUrl = (url: string): Promise<HTMLImageElement | null> => {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+};
+
+const waitForAlbumArt = async (maxWaitMs: number = 2000): Promise<HTMLImageElement | null> => {
+  const startTime = Date.now();
+  const checkInterval = 100;
+
+  while (Date.now() - startTime < maxWaitMs) {
+    const songImageDiv = document.getElementById("song-image");
+    const albumArt = songImageDiv?.querySelector("img") as HTMLImageElement;
+
+    if (albumArt?.complete && albumArt.naturalHeight > 0 && !albumArt.src.startsWith("data:")) {
+      return albumArt;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  }
+
+  return null;
+};
+
+const findValidImage = async (): Promise<HTMLImageElement | null> => {
+  const songImageDiv = document.getElementById("song-image");
+  const albumArt = songImageDiv?.querySelector("img") as HTMLImageElement;
+
+  if (albumArt?.complete && albumArt.naturalHeight > 0 && !albumArt.src.startsWith("data:")) {
+    logger.log("Found album art image");
+    return albumArt;
+  }
+
+  const videoId = getVideoIdFromUrl();
+  if (videoId) {
+    logger.log("Album art not ready, waiting briefly...");
+    const waitedAlbumArt = await waitForAlbumArt(1500);
+    if (waitedAlbumArt) {
+      logger.log("Found album art image after waiting");
+      return waitedAlbumArt;
+    }
+
+    logger.log("Trying YouTube thumbnail for video ID:", videoId);
+    const thumbnailUrls = [
+      `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+    ];
+
+    for (const url of thumbnailUrls) {
+      const img = await createImageFromUrl(url);
+      if (img && img.naturalHeight > 90) {
+        logger.log("Found YouTube thumbnail:", url);
+        return img;
+      }
+    }
+  }
+
+  const playerBarThumbnail = document.querySelector(
+    "ytmusic-player-bar .thumbnail img, " + ".middle-controls .thumbnail img"
+  ) as HTMLImageElement;
+
+  if (
+    playerBarThumbnail?.complete &&
+    playerBarThumbnail.naturalHeight > 0 &&
+    !playerBarThumbnail.src.startsWith("data:")
+  ) {
+    logger.log("Found player bar thumbnail");
+    return playerBarThumbnail;
+  }
+
+  logger.log("No valid image found");
+  return null;
+};
+
 export const extractColorsFromAlbumArt = async (
   boostDullColors: boolean = true,
   settings?: GradientSettings
@@ -226,18 +310,22 @@ export const extractColorsFromAlbumArt = async (
   colors: string[];
   imageSrc: string;
 } | null> => {
-  const songImageDiv = document.getElementById("song-image");
-  const coverImage = songImageDiv?.querySelector("img") as HTMLImageElement;
+  const coverImage = await findValidImage();
 
-  if (!coverImage || !coverImage.complete || coverImage.naturalHeight === 0) {
+  if (!coverImage) {
     return null;
   }
 
-  logger.log("Extracting colors from new image:", coverImage.src);
+  logger.log("Extracting colors from image:", coverImage.src);
 
   try {
     const colors = await extractColorsFromImage(coverImage, boostDullColors, settings);
     logger.log("Extracted colors:", colors);
+
+    if (colors.length === 0) {
+      logger.log("No colors extracted - skipping");
+      return null;
+    }
 
     return {
       colors,

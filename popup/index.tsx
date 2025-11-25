@@ -65,11 +65,7 @@ const Popup: React.FC = () => {
 
       <div className="content">
         {activeTab === "colors" && (
-          <ColorsTab
-            colors={currentSongColors}
-            onColorChange={handleColorChange}
-            onColorsChange={updateColors}
-          />
+          <ColorsTab colors={currentSongColors} onColorChange={handleColorChange} onColorsChange={updateColors} />
         )}
 
         {activeTab === "controls" && (

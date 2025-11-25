@@ -21,7 +21,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
   onImport,
 }) => {
   const handleReset = (key: keyof GradientSettings) => {
-    if (key === "audioResponsive" || key === "showLogs" || key === "boostDullColors" || key === "showOnHomepage" || key === "rememberAlbumSettings") {
+    if (
+      key === "audioResponsive" ||
+      key === "showLogs" ||
+      key === "boostDullColors" ||
+      key === "showOnBrowsePages" ||
+      key === "rememberAlbumSettings"
+    ) {
       onToggleChange(key, defaultSettings[key] as boolean);
     } else {
       onSettingChange(key, defaultSettings[key] as number);
@@ -37,9 +43,12 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     audioSpeedMultiplier:
       "How much to multiply animation speed when a beat is detected. Applied momentarily on each beat.",
     audioScaleBoost: "Percentage to boost scale when a beat is detected. Creates a pulsing zoom effect on beats.",
-    vibrantSaturationThreshold: "Minimum saturation percentage for a color to be considered vibrant. Colors above this threshold are counted toward the vibrant ratio.",
-    vibrantRatioThreshold: "Percentage of colors that must be vibrant (meet saturation threshold) for the boost to activate. If 50%, at least half the colors must be vibrant.",
-    boostIntensity: "Strength of the saturation boost applied to dull colors. Higher values create more vivid colors when boost is triggered.",
+    vibrantSaturationThreshold:
+      "Minimum saturation percentage for a color to be considered vibrant. Colors above this threshold are counted toward the vibrant ratio.",
+    vibrantRatioThreshold:
+      "Maximum percentage of vibrant colors allowed before skipping boost. If set to 50% and more than half the colors are vibrant, boosting is skipped since the palette is already colorful.",
+    boostIntensity:
+      "Strength of the saturation boost applied to dull colors. Higher values create more vivid colors when boost is triggered.",
   };
 
   return (
@@ -68,10 +77,10 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
           />
 
           <ControlToggle
-            label="Show on Homepage"
-            value={settings.showOnHomepage}
-            onChange={value => onToggleChange("showOnHomepage", value)}
-            hint="Displays the gradient shader on the YouTube Music homepage using the current player colors."
+            label="Show on Browse Pages"
+            value={settings.showOnBrowsePages}
+            onChange={value => onToggleChange("showOnBrowsePages", value)}
+            hint="Displays the gradient shader on browse pages (homepage and search) using the current player colors."
           />
 
           <ControlToggle
@@ -84,9 +93,19 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
           {Object.entries(settings)
             .filter(
               ([key]) =>
-                !["audioResponsive", "audioSpeedMultiplier", "audioScaleBoost", "showLogs", "boostDullColors", "showOnHomepage", "rememberAlbumSettings", "vibrantSaturationThreshold", "vibrantRatioThreshold", "boostIntensity"].includes(
-                  key
-                )
+                ![
+                  "audioResponsive",
+                  "audioSpeedMultiplier",
+                  "audioScaleBoost",
+                  "showLogs",
+                  "boostDullColors",
+                  "showOnBrowsePages",
+                  "showOnHomepage",
+                  "rememberAlbumSettings",
+                  "vibrantSaturationThreshold",
+                  "vibrantRatioThreshold",
+                  "boostIntensity",
+                ].includes(key)
             )
             .map(([key, value]) => (
               <ControlSlider

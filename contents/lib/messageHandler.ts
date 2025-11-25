@@ -1,7 +1,7 @@
 import type { GradientSettings } from "../../shared/constants/gradientSettings";
 
 interface MessageHandlers {
-  onColorsUpdate: (colors: string[]) => void;
+  onColorsUpdate: (colors: string[], pageType?: "player" | "homepage" | "search") => void;
   onSettingsUpdate: (settings: GradientSettings) => void;
   getCurrentData: () => {
     colors: string[];

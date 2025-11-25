@@ -22,17 +22,22 @@ let lastImageSrc = "";
 let currentAlbumArtUrl = "";
 let albumSaveDebounceTimer: NodeJS.Timeout | null = null;
 
-const debouncedSaveAlbumSettings = (albumUrl: string, settings: GradientSettings, colors: string[]): void => {
+const debouncedSaveAlbumColors = (
+  albumUrl: string,
+  colors: string[],
+  colorsManuallyModified: boolean = false
+): void => {
   if (albumSaveDebounceTimer) {
     clearTimeout(albumSaveDebounceTimer);
   }
 
   albumSaveDebounceTimer = setTimeout(() => {
-    logger.log("Debounced save - saving to album storage", {
+    logger.log("Debounced save - saving colors to album storage", {
       albumUrl,
-      colorCount: colors.length
+      colorCount: colors.length,
+      colorsManuallyModified,
     });
-    storage.saveAlbumSettings(albumUrl, settings, colors);
+    storage.saveAlbumColors(albumUrl, colors, colorsManuallyModified);
     albumSaveDebounceTimer = null;
   }, 1000);
 };
@@ -51,31 +56,49 @@ const handleAudioResponsiveToggle = (): void => {
   }
 };
 
-const getCurrentPageType = (): "player" | "homepage" | "other" => {
+const getCurrentPageType = (): "player" | "homepage" | "search" | "other" => {
   const hasPlayerPage = !!document.getElementById("player-page");
+  const hasSearchPage = !!document.getElementById("search-page");
   const hasHomepageGradient = !!document.querySelector(".background-gradient.style-scope.ytmusic-browse-response");
 
   logger.log("getCurrentPageType check:", {
     hasPlayerPage,
-    hasHomepageGradient
+    hasSearchPage,
+    hasHomepageGradient,
   });
 
   if (hasPlayerPage) return "player";
+  if (hasSearchPage) return "search";
   if (hasHomepageGradient) return "homepage";
   return "other";
 };
 
-const updateGradientColors = async (colors: string[], pageType: "player" | "homepage" = "player"): Promise<void> => {
+const getLocationFromPageType = (pageType: "player" | "homepage" | "search"): string => {
+  if (pageType === "player") return "player";
+  if (pageType === "search") return "search";
+  return "homepage";
+};
+
+const getTargetSelectorFromPageType = (pageType: "player" | "homepage" | "search"): string => {
+  if (pageType === "player") return "player-page";
+  if (pageType === "search") return "search-page";
+  return "homepage";
+};
+
+const updateGradientColors = async (
+  colors: string[],
+  pageType: "player" | "homepage" | "search" = "player"
+): Promise<void> => {
   logger.log("updateGradientColors called with", colors.length, "colors for", pageType);
 
   if (colors.length === 0) {
-    const location = pageType === "player" ? "player" : "homepage";
+    const location = getLocationFromPageType(pageType);
     shaderManager.destroyShader(location);
     return;
   }
 
-  const targetSelector = pageType === "player" ? "player-page" : "homepage";
-  const location = pageType === "player" ? "player" : "homepage";
+  const targetSelector = getTargetSelectorFromPageType(pageType);
+  const location = getLocationFromPageType(pageType);
 
   if (shaderManager.hasShader(location)) {
     logger.log(`Updating existing ${location} shader colors`);
@@ -88,13 +111,18 @@ const updateGradientColors = async (colors: string[], pageType: "player" | "home
 
   if (gradientSettings.rememberAlbumSettings && currentAlbumArtUrl && pageType === "player") {
     logger.log("Colors manually updated - debouncing save to album storage");
-    debouncedSaveAlbumSettings(currentAlbumArtUrl, gradientSettings, colors);
+    debouncedSaveAlbumColors(currentAlbumArtUrl, colors, true);
   }
 };
 
 const updateGradientSettings = (settings: GradientSettings): void => {
   const wasAudioResponsive = gradientSettings.audioResponsive;
-  const wasShowOnHomepage = gradientSettings.showOnHomepage;
+  const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
+  const boostSettingsChanged =
+    gradientSettings.boostDullColors !== settings.boostDullColors ||
+    gradientSettings.vibrantSaturationThreshold !== settings.vibrantSaturationThreshold ||
+    gradientSettings.vibrantRatioThreshold !== settings.vibrantRatioThreshold ||
+    gradientSettings.boostIntensity !== settings.boostIntensity;
 
   gradientSettings = settings;
 
@@ -104,67 +132,74 @@ const updateGradientSettings = (settings: GradientSettings): void => {
     handleAudioResponsiveToggle();
   }
 
-  if (wasShowOnHomepage !== settings.showOnHomepage) {
+  if (wasShowOnBrowsePages !== settings.showOnBrowsePages) {
     checkAndUpdateGradient();
+  }
+
+  if (boostSettingsChanged) {
+    logger.log("Boost settings changed - re-extracting colors");
+    colorExtraction.clearColorCache();
+    extractAndUpdateColors(true);
   }
 
   if (shaderManager.hasShader()) {
     shaderManager.updateShaderSettings(settings, dynamicMultipliers);
   }
-
-  if (settings.rememberAlbumSettings && currentAlbumArtUrl) {
-    const currentColors = shaderManager.getCurrentColors();
-    logger.log("Settings changed - debouncing save to album storage");
-    debouncedSaveAlbumSettings(currentAlbumArtUrl, settings, currentColors);
-  }
 };
 
 const extractAndUpdateColors = async (forceExtraction: boolean = false): Promise<void> => {
   logger.log("Extracting colors from album art...", { forceExtraction });
-  const result = await colorExtraction.extractColorsFromAlbumArt(
-    gradientSettings.boostDullColors,
-    gradientSettings
-  );
+  const result = await colorExtraction.extractColorsFromAlbumArt(gradientSettings.boostDullColors, gradientSettings);
 
   if (!result) {
     logger.log("No album art found");
     return;
   }
 
-  if (result.imageSrc === lastImageSrc && !forceExtraction) {
-    logger.log("Same image, skipping");
-    return;
-  }
+  const isSameImage = result.imageSrc === lastImageSrc;
+  const isNewImage = !isSameImage;
 
-  logger.log("New album detected:", result.imageSrc);
-  lastImageSrc = result.imageSrc;
+  if (isNewImage) {
+    logger.log("New album detected:", result.imageSrc);
+    lastImageSrc = result.imageSrc;
+  }
   currentAlbumArtUrl = result.imageSrc;
 
   let colorsToUse = result.colors;
-  let settingsToApply = gradientSettings;
+  let shouldUpdate = isNewImage || forceExtraction;
 
   if (gradientSettings.rememberAlbumSettings && !forceExtraction) {
     const savedAlbumData = await storage.loadAlbumSettings(result.imageSrc);
     if (savedAlbumData) {
-      logger.log("Found saved album data - restoring settings and colors", {
+      logger.log("Found saved album data", {
         savedColors: savedAlbumData.colors,
-        savedSettingsKeys: Object.keys(savedAlbumData.settings)
+        colorsManuallyModified: savedAlbumData.colorsManuallyModified,
       });
 
-      if (savedAlbumData.colors && savedAlbumData.colors.length > 0) {
-        colorsToUse = savedAlbumData.colors;
-        logger.log("Using saved colors instead of freshly extracted ones");
-      }
+      const shouldUseSavedColors =
+        savedAlbumData.colors &&
+        savedAlbumData.colors.length > 0 &&
+        (savedAlbumData.colorsManuallyModified || !gradientSettings.boostDullColors);
 
-      if (savedAlbumData.settings && Object.keys(savedAlbumData.settings).length > 0) {
-        settingsToApply = { ...gradientSettings, ...savedAlbumData.settings };
-        gradientSettings = settingsToApply;
-        logger.log("Applied saved settings for this album");
+      if (shouldUseSavedColors) {
+        colorsToUse = savedAlbumData.colors;
+        logger.log("Using saved colors (manually modified or boost disabled)");
+        const currentColors = shaderManager.getCurrentColors();
+        if (JSON.stringify(currentColors) !== JSON.stringify(colorsToUse)) {
+          shouldUpdate = true;
+        }
+      } else {
+        logger.log("Using freshly extracted colors with boost applied");
       }
-    } else {
-      logger.log("No saved data for this album - will save current state");
-      debouncedSaveAlbumSettings(result.imageSrc, gradientSettings, colorsToUse);
+    } else if (isNewImage) {
+      logger.log("No saved data for this album - will save current colors");
+      debouncedSaveAlbumColors(result.imageSrc, colorsToUse, false);
     }
+  }
+
+  if (!shouldUpdate) {
+    logger.log("Same image and colors unchanged, skipping update");
+    return;
   }
 
   if (forceExtraction) {
@@ -174,14 +209,27 @@ const extractAndUpdateColors = async (forceExtraction: boolean = false): Promise
   if (colorsToUse.length > 0) {
     await updateGradientColors(colorsToUse, "player");
 
-    if (gradientSettings.showOnHomepage && shaderManager.hasShader("homepage")) {
-      logger.log("Updating homepage shader with new colors");
-      await updateGradientColors(colorsToUse, "homepage");
+    if (gradientSettings.showOnBrowsePages) {
+      if (shaderManager.hasShader("homepage")) {
+        logger.log("Updating homepage shader with new colors");
+        await updateGradientColors(colorsToUse, "homepage");
+      }
+      if (shaderManager.hasShader("search")) {
+        logger.log("Updating search shader with new colors");
+        await updateGradientColors(colorsToUse, "search");
+      }
     }
+  }
+};
 
-    if (shaderManager.hasShader("player") && settingsToApply !== gradientSettings) {
-      shaderManager.updateShaderSettings(settingsToApply, dynamicMultipliers);
-    }
+const destroyBrowsePageShaders = (): void => {
+  if (shaderManager.hasShader("homepage")) {
+    logger.log("Removing homepage shader");
+    shaderManager.destroyShader("homepage");
+  }
+  if (shaderManager.hasShader("search")) {
+    logger.log("Removing search shader");
+    shaderManager.destroyShader("search");
   }
 };
 
@@ -189,59 +237,60 @@ const checkAndUpdateGradient = async (): Promise<void> => {
   const pageType = getCurrentPageType();
   const hasPlayerShader = shaderManager.hasShader("player");
   const hasHomepageShader = shaderManager.hasShader("homepage");
+  const hasSearchShader = shaderManager.hasShader("search");
 
   logger.log("checkAndUpdateGradient", {
     pageType,
     hasPlayerShader,
     hasHomepageShader,
-    showOnHomepage: gradientSettings.showOnHomepage
+    hasSearchShader,
+    showOnBrowsePages: gradientSettings.showOnBrowsePages,
   });
 
-  // Player page - always show player shader
   if (pageType === "player") {
     logger.log("On player page - extracting colors");
     await extractAndUpdateColors();
 
-    if (gradientSettings.showOnHomepage) {
+    if (gradientSettings.showOnBrowsePages) {
       const currentColors = shaderManager.getCurrentColors();
       if (currentColors.length > 0 && !hasHomepageShader) {
         logger.log("Creating homepage shader from player colors");
         await updateGradientColors(currentColors, "homepage");
       }
-    } else if (hasHomepageShader) {
-      logger.log("showOnHomepage disabled - removing homepage shader");
-      shaderManager.destroyShader("homepage");
+      if (currentColors.length > 0 && !hasSearchShader) {
+        logger.log("Creating search shader from player colors");
+        await updateGradientColors(currentColors, "search");
+      }
+    } else {
+      destroyBrowsePageShaders();
     }
-  }
-  // Homepage - only show homepage shader if setting is enabled
-  else if (pageType === "homepage") {
-    if (gradientSettings.showOnHomepage) {
+  } else if (pageType === "homepage" || pageType === "search") {
+    if (gradientSettings.showOnBrowsePages) {
       const currentColors = shaderManager.getCurrentColors();
-      logger.log("On homepage - showOnHomepage enabled", {
-        hasHomepageShader,
+      const hasTargetShader = pageType === "homepage" ? hasHomepageShader : hasSearchShader;
+
+      logger.log(`On ${pageType} - showOnBrowsePages enabled`, {
+        hasTargetShader,
         availableColors: currentColors,
-        colorCount: currentColors.length
+        colorCount: currentColors.length,
       });
 
-      if (!hasHomepageShader && currentColors.length > 0) {
-        logger.log("Creating homepage shader with colors:", currentColors);
-        await updateGradientColors(currentColors, "homepage");
-      } else if (!hasHomepageShader) {
-        logger.log("No colors available yet for homepage shader");
+      if (!hasTargetShader && currentColors.length > 0) {
+        logger.log(`Creating ${pageType} shader with colors:`, currentColors);
+        await updateGradientColors(currentColors, pageType);
+      } else if (!hasTargetShader) {
+        logger.log(`No colors available yet for ${pageType} shader`);
       }
-    } else if (hasHomepageShader) {
-      logger.log("showOnHomepage disabled - removing homepage shader");
-      shaderManager.destroyShader("homepage");
+    } else {
+      destroyBrowsePageShaders();
     }
 
     if (hasPlayerShader) {
       logger.log("Not on player page - removing player shader");
       shaderManager.destroyShader("player");
     }
-  }
-  // Other pages - remove all shaders
-  else {
-    logger.log("Not on player or homepage - removing all shaders");
+  } else {
+    logger.log("On other page - removing all shaders");
     shaderManager.destroyShader();
   }
 };
@@ -270,6 +319,23 @@ const initializeApp = async (): Promise<void> => {
 
   setTimeout(async () => {
     await checkAndUpdateGradient();
+
+    const retryExtraction = async (retries: number = 10): Promise<void> => {
+      if (retries <= 0) {
+        logger.log("Max retries reached, giving up on color extraction");
+        return;
+      }
+      const colors = shaderManager.getCurrentColors();
+      if (colors.length === 0) {
+        logger.log(`No colors yet, retrying extraction... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await checkAndUpdateGradient();
+        await retryExtraction(retries - 1);
+      } else {
+        logger.log("Colors found, stopping retry");
+      }
+    };
+    await retryExtraction();
 
     setTimeout(async () => {
       await audioAnalysis.initializeAudioAnalysis();
@@ -321,6 +387,17 @@ const initializeApp = async (): Promise<void> => {
     };
 
     waitForSongImage();
+
+    let lastVideoId = new URL(window.location.href).searchParams.get("v");
+    const checkForVideoIdChange = () => {
+      const currentVideoId = new URL(window.location.href).searchParams.get("v");
+      if (currentVideoId && currentVideoId !== lastVideoId) {
+        logger.log("Video ID changed:", lastVideoId, "->", currentVideoId);
+        lastVideoId = currentVideoId;
+        debouncedUpdate();
+      }
+    };
+    setInterval(checkForVideoIdChange, 1000);
 
     const playerPageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {

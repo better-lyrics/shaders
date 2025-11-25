@@ -116,7 +116,7 @@ export const useGradientSettings = () => {
               "audioScaleBoost",
               "showLogs",
               "boostDullColors",
-              "showOnHomepage",
+              "showOnBrowsePages",
               "rememberAlbumSettings",
               "vibrantSaturationThreshold",
               "vibrantRatioThreshold",
@@ -124,7 +124,13 @@ export const useGradientSettings = () => {
             ];
 
             const isValid = requiredKeys.every(key => {
-              if (key === "audioResponsive" || key === "showLogs" || key === "boostDullColors" || key === "showOnHomepage" || key === "rememberAlbumSettings") {
+              if (
+                key === "audioResponsive" ||
+                key === "showLogs" ||
+                key === "boostDullColors" ||
+                key === "showOnBrowsePages" ||
+                key === "rememberAlbumSettings"
+              ) {
                 return typeof data.settings[key] === "boolean";
               }
               return typeof data.settings[key] === "number";
