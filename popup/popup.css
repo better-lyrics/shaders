@@ -132,6 +132,48 @@ body {
   gap: 12px;
 }
 
+.colors-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.paste-input-container {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.paste-input {
+  width: 100%;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+
+.paste-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.paste-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.paste-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .color-row {
   display: flex;
   align-items: center;
@@ -369,6 +411,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  text-transform: uppercase;
+
   gap: 8px;
 }
 

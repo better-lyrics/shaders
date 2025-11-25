@@ -64,7 +64,13 @@ const Popup: React.FC = () => {
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="content">
-        {activeTab === "colors" && <ColorsTab colors={currentSongColors} onColorChange={handleColorChange} />}
+        {activeTab === "colors" && (
+          <ColorsTab
+            colors={currentSongColors}
+            onColorChange={handleColorChange}
+            onColorsChange={updateColors}
+          />
+        )}
 
         {activeTab === "controls" && (
           <ControlsTab

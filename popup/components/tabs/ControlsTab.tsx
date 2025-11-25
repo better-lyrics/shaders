@@ -21,7 +21,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
   onImport,
 }) => {
   const handleReset = (key: keyof GradientSettings) => {
-    if (key === "audioResponsive" || key === "showLogs" || key === "boostDullColors") {
+    if (key === "audioResponsive" || key === "showLogs" || key === "boostDullColors" || key === "showOnHomepage" || key === "rememberAlbumSettings") {
       onToggleChange(key, defaultSettings[key] as boolean);
     } else {
       onSettingChange(key, defaultSettings[key] as number);
@@ -37,6 +37,9 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     audioSpeedMultiplier:
       "How much to multiply animation speed when a beat is detected. Applied momentarily on each beat.",
     audioScaleBoost: "Percentage to boost scale when a beat is detected. Creates a pulsing zoom effect on beats.",
+    vibrantSaturationThreshold: "Minimum saturation percentage for a color to be considered vibrant. Colors above this threshold are counted toward the vibrant ratio.",
+    vibrantRatioThreshold: "Percentage of colors that must be vibrant (meet saturation threshold) for the boost to activate. If 50%, at least half the colors must be vibrant.",
+    boostIntensity: "Strength of the saturation boost applied to dull colors. Higher values create more vivid colors when boost is triggered.",
   };
 
   return (
@@ -64,10 +67,24 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             hint="Shows debug information in the browser console for color extraction, audio analysis, and gradient updates."
           />
 
+          <ControlToggle
+            label="Show on Homepage"
+            value={settings.showOnHomepage}
+            onChange={value => onToggleChange("showOnHomepage", value)}
+            hint="Displays the gradient shader on the YouTube Music homepage using the current player colors."
+          />
+
+          <ControlToggle
+            label="Remember Album Settings"
+            value={settings.rememberAlbumSettings}
+            onChange={value => onToggleChange("rememberAlbumSettings", value)}
+            hint="Automatically saves and restores gradient settings for each album. When you change settings while listening to an album, those settings will be remembered and applied next time you play that album."
+          />
+
           {Object.entries(settings)
             .filter(
               ([key]) =>
-                !["audioResponsive", "audioSpeedMultiplier", "audioScaleBoost", "showLogs", "boostDullColors"].includes(
+                !["audioResponsive", "audioSpeedMultiplier", "audioScaleBoost", "showLogs", "boostDullColors", "showOnHomepage", "rememberAlbumSettings", "vibrantSaturationThreshold", "vibrantRatioThreshold", "boostIntensity"].includes(
                   key
                 )
             )
@@ -81,6 +98,35 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
                 hint={sliderHints[key as keyof GradientSettings]}
               />
             ))}
+
+          {settings.boostDullColors && (
+            <>
+              <ControlSlider
+                key="vibrantSaturationThreshold"
+                keyName="vibrantSaturationThreshold"
+                value={settings.vibrantSaturationThreshold}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.vibrantSaturationThreshold}
+              />
+              <ControlSlider
+                key="vibrantRatioThreshold"
+                keyName="vibrantRatioThreshold"
+                value={settings.vibrantRatioThreshold}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.vibrantRatioThreshold}
+              />
+              <ControlSlider
+                key="boostIntensity"
+                keyName="boostIntensity"
+                value={settings.boostIntensity}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.boostIntensity}
+              />
+            </>
+          )}
 
           {settings.audioResponsive && (
             <>

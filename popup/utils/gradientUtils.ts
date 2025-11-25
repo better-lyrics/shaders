@@ -11,6 +11,9 @@ export const getControlLabel = (key: string): string => {
     audioScaleBoost: "Beat Scale Boost",
     offsetX: "Offset X",
     offsetY: "Offset Y",
+    vibrantSaturationThreshold: "Vibrant Saturation Threshold",
+    vibrantRatioThreshold: "Vibrant Ratio Threshold",
+    boostIntensity: "Boost Intensity",
   };
 
   return labels[key] || capitalizeFirst(key);

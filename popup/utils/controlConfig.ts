@@ -41,6 +41,18 @@ export const getControlConfig = (key: string): ControlConfig => {
     min = 0;
     max = 5;
     step = 0.1;
+  } else if (key === "vibrantSaturationThreshold") {
+    min = 0;
+    max = 100;
+    step = 1;
+  } else if (key === "vibrantRatioThreshold") {
+    min = 0;
+    max = 100;
+    step = 1;
+  } else if (key === "boostIntensity") {
+    min = 0;
+    max = 100;
+    step = 1;
   }
 
   return { min, max, step };

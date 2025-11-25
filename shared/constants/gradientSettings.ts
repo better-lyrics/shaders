@@ -12,6 +12,11 @@ export interface GradientSettings {
   audioScaleBoost: number;
   showLogs: boolean;
   boostDullColors: boolean;
+  showOnHomepage: boolean;
+  rememberAlbumSettings: boolean;
+  vibrantSaturationThreshold: number;
+  vibrantRatioThreshold: number;
+  boostIntensity: number;
 }
 
 export interface DynamicMultipliers {
@@ -33,6 +38,11 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioScaleBoost: 1,
   showLogs: false,
   boostDullColors: true,
+  showOnHomepage: false,
+  rememberAlbumSettings: false,
+  vibrantSaturationThreshold: 30,
+  vibrantRatioThreshold: 50,
+  boostIntensity: 50,
 };
 
 export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {
@@ -41,3 +51,4 @@ export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {
 };
 
 export const GRADIENT_SETTINGS_STORAGE_KEY = "gradientSettings";
+export const ALBUM_SETTINGS_STORAGE_KEY = "albumSpecificSettings";

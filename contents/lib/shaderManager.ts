@@ -7,6 +7,7 @@ import type {
   DynamicMultipliers,
   GradientSettings,
 } from "../../shared/constants/gradientSettings";
+import { logger } from "../../shared/utils/logger";
 
 interface ShaderState {
   container: HTMLDivElement | null;
@@ -19,7 +20,7 @@ interface ShaderState {
   isVisible: boolean;
 }
 
-const state: ShaderState = {
+const createEmptyState = (): ShaderState => ({
   container: null,
   mount: null,
   colors: [],
@@ -28,6 +29,16 @@ const state: ShaderState = {
   lastMultipliers: null,
   observer: null,
   isVisible: true,
+});
+
+const shaders = new Map<string, ShaderState>();
+let lastKnownColors: string[] = [];
+
+const getShaderState = (location: string): ShaderState => {
+  if (!shaders.has(location)) {
+    shaders.set(location, createEmptyState());
+  }
+  return shaders.get(location)!;
 };
 
 const colorVectorCache = new Map<string, number[]>();
@@ -84,44 +95,87 @@ const waitForPlayerPageReady = async (): Promise<boolean> => {
 export const createShader = async (
   colors: string[],
   settings: GradientSettings,
-  multipliers: DynamicMultipliers
+  multipliers: DynamicMultipliers,
+  targetSelector: string = "player-page"
 ): Promise<boolean> => {
   if (colors.length === 0) return false;
 
-  destroyShader();
+  const location = targetSelector === "player-page" ? "player" : "homepage";
+  const state = getShaderState(location);
+
+  if (state.mount) {
+    logger.log(`Shader already exists for ${location}, destroying first`);
+    destroyShader(location);
+  }
 
   const isReady = await waitForPlayerPageReady();
   if (!isReady) return false;
 
-  const playerPage = document.getElementById("player-page");
-  if (!playerPage) return false;
+  const targetElement =
+    targetSelector === "player-page"
+      ? document.getElementById("player-page")
+      : document.querySelector(
+          ".background-gradient.style-scope.ytmusic-browse-response"
+        );
 
-  const existingGradient = document.getElementById("better-lyrics-gradient");
+  logger.log(
+    "createShader - targetSelector:",
+    targetSelector,
+    "targetElement found:",
+    !!targetElement
+  );
+
+  if (!targetElement) {
+    logger.error("Target element not found for selector:", targetSelector);
+    return false;
+  }
+
+  const existingGradient = targetElement.querySelector(
+    `#better-lyrics-gradient-${location}`
+  );
   if (existingGradient) {
     existingGradient.remove();
   }
 
   state.container = document.createElement("div");
-  state.container.id = "better-lyrics-gradient";
-  state.container.style.cssText = `
-    position: absolute;
-    top: -64px;
-    left: -72px;
-    width: calc(100% + 72px);
-    height: calc(100% + 128px);
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0;
-    will-change: opacity;
-		transition: opacity 0.5s ease-out;
-  `;
+  state.container.id = `better-lyrics-gradient-${location}`;
+  const isHomepage = targetSelector !== "player-page";
 
-  playerPage.insertBefore(state.container, playerPage.firstChild);
+  state.container.style.cssText = isHomepage
+    ? `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      will-change: opacity;
+      transition: opacity 0.5s ease-out;
+    `
+    : `
+      position: absolute;
+      top: -64px;
+      left: -72px;
+      width: calc(100% + 72px);
+      height: calc(100% + 128px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      will-change: opacity;
+      transition: opacity 0.5s ease-out;
+    `;
+
+  targetElement.insertBefore(state.container, targetElement.firstChild);
 
   state.colors = colors;
   state.colorVectors = colors.map(getCachedColorVector);
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
+
+  lastKnownColors = [...colors];
+  logger.log("Saved lastKnownColors:", lastKnownColors);
 
   const uniforms = buildMeshGradientUniforms(
     state.colorVectors,
@@ -131,8 +185,8 @@ export const createShader = async (
   const speed = settings.speed * multipliers.speedMultiplier;
 
   // Performance optimizations: reduce pixel count and anti-aliasing for better GPU performance
-  const minPixelRatio = 1; // Reduced from default 2.0 for lower anti-aliasing overhead
-  const maxPixelCount = 1920 * 1080 * 2; // ~4M pixels (1080p @ 2x) instead of default ~8.3M (4K)
+  const minPixelRatio = 0.5; // Reduced from default 2.0 for lower anti-aliasing overhead
+  const maxPixelCount = 1920 * 1080; // ~2M pixels (1080p @ 1x) instead of default ~8.3M (4K)
 
   state.mount = new ShaderMount(
     state.container,
@@ -178,31 +232,46 @@ export const createShader = async (
   return true;
 };
 
-export const destroyShader = (): void => {
-  if (state.observer) {
-    state.observer.disconnect();
-    state.observer = null;
+export const destroyShader = (location?: string): void => {
+  if (location) {
+    const state = getShaderState(location);
+    logger.log(`Destroying shader for location: ${location}`);
+
+    if (state.observer) {
+      state.observer.disconnect();
+      state.observer = null;
+    }
+    if (state.mount) {
+      state.mount.dispose();
+      state.mount = null;
+    }
+    if (state.container) {
+      state.container.remove();
+      state.container = null;
+    }
+    state.colors = [];
+    state.colorVectors = [];
+    state.lastSettings = null;
+    state.lastMultipliers = null;
+    state.isVisible = true;
+
+    shaders.delete(location);
+  } else {
+    logger.log("Destroying all shaders");
+    for (const loc of shaders.keys()) {
+      destroyShader(loc);
+    }
   }
-  if (state.mount) {
-    state.mount.dispose();
-    state.mount = null;
-  }
-  if (state.container) {
-    state.container.remove();
-    state.container = null;
-  }
-  state.colors = [];
-  state.colorVectors = [];
-  state.lastSettings = null;
-  state.lastMultipliers = null;
-  state.isVisible = true;
 };
 
 export const updateShaderColors = (
   colors: string[],
   settings: GradientSettings,
-  multipliers: DynamicMultipliers
+  multipliers: DynamicMultipliers,
+  location: string = "player"
 ): void => {
+  const state = getShaderState(location);
+
   if (!state.mount || !state.container) return;
 
   const colorsChanged = JSON.stringify(colors) !== JSON.stringify(state.colors);
@@ -210,6 +279,11 @@ export const updateShaderColors = (
   if (colorsChanged) {
     state.colors = colors;
     state.colorVectors = colors.map(getCachedColorVector);
+    lastKnownColors = [...colors];
+    logger.log(
+      `Updated colors for ${location}, lastKnownColors:`,
+      lastKnownColors
+    );
   }
 
   const uniforms = buildMeshGradientUniforms(
@@ -232,53 +306,74 @@ export const updateShaderColors = (
 
 export const updateShaderSettings = (
   settings: GradientSettings,
-  multipliers: DynamicMultipliers
+  multipliers: DynamicMultipliers,
+  location?: string
 ): void => {
-  if (!state.mount || !state.container || state.colorVectors.length === 0)
-    return;
+  const updateForLocation = (loc: string) => {
+    const state = getShaderState(loc);
 
-  const settingsChanged =
-    JSON.stringify(settings) !== JSON.stringify(state.lastSettings);
-  const multipliersChanged =
-    JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
+    if (!state.mount || !state.container || state.colorVectors.length === 0)
+      return;
 
-  if (!settingsChanged && !multipliersChanged) return;
+    const settingsChanged =
+      JSON.stringify(settings) !== JSON.stringify(state.lastSettings);
+    const multipliersChanged =
+      JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
 
-  const uniforms = buildMeshGradientUniforms(
-    state.colorVectors,
-    settings,
-    multipliers
-  );
-  const speed = settings.speed * multipliers.speedMultiplier;
+    if (!settingsChanged && !multipliersChanged) return;
 
-  state.mount.setUniforms(uniforms as any);
-  // Only set speed if shader is visible, otherwise keep it paused
-  state.mount.setSpeed(state.isVisible ? speed : 0);
+    const uniforms = buildMeshGradientUniforms(
+      state.colorVectors,
+      settings,
+      multipliers
+    );
+    const speed = settings.speed * multipliers.speedMultiplier;
 
-  state.lastSettings = { ...settings };
-  state.lastMultipliers = { ...multipliers };
+    state.mount.setUniforms(uniforms as any);
+    state.mount.setSpeed(state.isVisible ? speed : 0);
 
-  if (
-    state.container &&
-    state.container.style.opacity !== settings.opacity.toString()
-  ) {
-    state.container.style.opacity = settings.opacity.toString();
+    state.lastSettings = { ...settings };
+    state.lastMultipliers = { ...multipliers };
+
+    if (
+      state.container &&
+      state.container.style.opacity !== settings.opacity.toString()
+    ) {
+      state.container.style.opacity = settings.opacity.toString();
+    }
+  };
+
+  if (location) {
+    updateForLocation(location);
+  } else {
+    for (const loc of shaders.keys()) {
+      updateForLocation(loc);
+    }
   }
 };
 
-export const hasShader = (): boolean => {
-  return state.mount !== null && state.container !== null;
+export const hasShader = (location?: string): boolean => {
+  if (location) {
+    const state = getShaderState(location);
+    return state.mount !== null && state.container !== null;
+  }
+  return (
+    shaders.size > 0 &&
+    Array.from(shaders.values()).some((s) => s.mount !== null)
+  );
 };
 
 export const getCurrentColors = (): string[] => {
-  return [...state.colors];
+  logger.log("getCurrentColors called - lastKnownColors:", lastKnownColors);
+  return [...lastKnownColors];
 };
 
 export const cleanupOrphanedGradients = (): void => {
   const existingGradients = document.querySelectorAll(
-    "#better-lyrics-gradient"
+    "[id^='better-lyrics-gradient']"
   );
   existingGradients.forEach((gradient) => gradient.remove());
+  logger.log("Cleaned up orphaned gradients:", existingGradients.length);
 };
 
 export const clearColorVectorCache = (): void => {

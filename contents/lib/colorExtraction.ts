@@ -1,4 +1,5 @@
 import ColorThief from "colorthief";
+import type { GradientSettings } from "../../shared/constants/gradientSettings";
 import { logger } from "../../shared/utils/logger";
 
 const colorThief = new ColorThief();
@@ -49,14 +50,26 @@ const manageCacheSize = () => {
 };
 
 const boostDullColorSaturation = (
-  hslColors: Array<{ hue: number; saturation: number; lightness: number }>
+  hslColors: Array<{ hue: number; saturation: number; lightness: number }>,
+  settings: GradientSettings
 ): Array<{ hue: number; saturation: number; lightness: number }> => {
-  // Count how many colors have decent saturation (>= 30%)
-  const vibrantColors = hslColors.filter(c => c.saturation >= 30).length;
+  const vibrantThreshold = settings.vibrantSaturationThreshold;
+  const ratioThreshold = settings.vibrantRatioThreshold / 100;
+  const intensity = settings.boostIntensity / 100;
+
+  const vibrantColors = hslColors.filter(c => c.saturation >= vibrantThreshold).length;
   const vibrantRatio = vibrantColors / hslColors.length;
 
-  // Only boost if majority (>= 50%) of colors are vibrant
-  if (vibrantRatio < 0.5) {
+  logger.log("Color boost analysis:", {
+    vibrantColors,
+    totalColors: hslColors.length,
+    vibrantRatio: (vibrantRatio * 100).toFixed(1) + "%",
+    threshold: (ratioThreshold * 100) + "%",
+    willBoost: vibrantRatio >= ratioThreshold
+  });
+
+  if (vibrantRatio < ratioThreshold) {
+    logger.log("Not boosting - vibrant ratio below threshold");
     return hslColors;
   }
 
@@ -66,11 +79,17 @@ const boostDullColorSaturation = (
       ? nonGrayscaleColors.reduce((sum, c) => sum + c.hue, 0) / nonGrayscaleColors.length
       : 0;
 
+  const dullThreshold = 40;
+  const multiplier = 1 + (intensity * 0.5);
+  const addition = intensity * 0.4;
+  const cap = 70;
+
   return hslColors.map(color => {
-    if (color.saturation < 40) {
+    if (color.saturation < dullThreshold) {
       const targetHue = color.saturation < 5 ? avgHue : color.hue;
-      const boostedSaturation = Math.min(color.saturation * 1.5 + 20, 70);
-      return { hue: targetHue, saturation: boostedSaturation, lightness: color.lightness };
+      const boostedSaturation = Math.min(color.saturation * multiplier + addition, cap);
+      logger.log(`Boosting color: sat ${color.saturation}% -> ${boostedSaturation.toFixed(1)}%`);
+      return { hue: targetHue, saturation: Math.round(boostedSaturation), lightness: color.lightness };
     }
     return color;
   });
@@ -78,9 +97,10 @@ const boostDullColorSaturation = (
 
 export const extractColorsFromImage = async (
   img: HTMLImageElement,
-  boostDullColors: boolean = true
+  boostDullColors: boolean = true,
+  settings?: GradientSettings
 ): Promise<string[]> => {
-  const cacheKey = `${img.src}_${boostDullColors}`;
+  const cacheKey = `${img.src}_${boostDullColors}_${settings?.vibrantSaturationThreshold}_${settings?.vibrantRatioThreshold}_${settings?.boostIntensity}`;
 
   if (imageCache.has(cacheKey)) {
     return imageCache.get(cacheKey)!;
@@ -164,8 +184,8 @@ export const extractColorsFromImage = async (
               return rgbToHsl(r, g, b);
             });
 
-          if (boostDullColors) {
-            colorsHslObjects = boostDullColorSaturation(colorsHslObjects);
+          if (boostDullColors && settings) {
+            colorsHslObjects = boostDullColorSaturation(colorsHslObjects, settings);
           }
 
           const colorsHsl = colorsHslObjects.map(
@@ -200,7 +220,8 @@ export const extractColorsFromImage = async (
 };
 
 export const extractColorsFromAlbumArt = async (
-  boostDullColors: boolean = true
+  boostDullColors: boolean = true,
+  settings?: GradientSettings
 ): Promise<{
   colors: string[];
   imageSrc: string;
@@ -215,7 +236,7 @@ export const extractColorsFromAlbumArt = async (
   logger.log("Extracting colors from new image:", coverImage.src);
 
   try {
-    const colors = await extractColorsFromImage(coverImage, boostDullColors);
+    const colors = await extractColorsFromImage(coverImage, boostDullColors, settings);
     logger.log("Extracted colors:", colors);
 
     return {
