@@ -10,6 +10,7 @@ export interface GradientSettings {
   audioResponsive: boolean;
   audioSpeedMultiplier: number;
   audioScaleBoost: number;
+  audioBeatThreshold: number;
   showLogs: boolean;
   boostDullColors: boolean;
   showOnBrowsePages: boolean;
@@ -36,6 +37,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioResponsive: true,
   audioSpeedMultiplier: 4,
   audioScaleBoost: 1,
+  audioBeatThreshold: 0.105,
   showLogs: false,
   boostDullColors: true,
   showOnBrowsePages: false,

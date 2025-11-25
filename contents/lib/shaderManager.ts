@@ -42,12 +42,44 @@ const getShaderState = (location: string): ShaderState => {
 };
 
 const colorVectorCache = new Map<string, number[]>();
+const MAX_COLOR_CACHE_SIZE = 100;
 
 const getCachedColorVector = (color: string): number[] => {
   if (!colorVectorCache.has(color)) {
+    if (colorVectorCache.size >= MAX_COLOR_CACHE_SIZE) {
+      const firstKey = colorVectorCache.keys().next().value;
+      if (firstKey) colorVectorCache.delete(firstKey);
+    }
     colorVectorCache.set(color, getShaderColorFromString(color) as number[]);
   }
   return colorVectorCache.get(color)!;
+};
+
+const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean => {
+  if (!a) return false;
+  return (
+    a.distortion === b.distortion &&
+    a.swirl === b.swirl &&
+    a.scale === b.scale &&
+    a.rotation === b.rotation &&
+    a.speed === b.speed &&
+    a.opacity === b.opacity &&
+    a.offsetX === b.offsetX &&
+    a.offsetY === b.offsetY
+  );
+};
+
+const multipliersEqual = (a: DynamicMultipliers | null, b: DynamicMultipliers): boolean => {
+  if (!a) return false;
+  return a.speedMultiplier === b.speedMultiplier && a.scaleMultiplier === b.scaleMultiplier;
+};
+
+const colorsEqual = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 };
 
 const buildMeshGradientUniforms = (
@@ -292,7 +324,7 @@ export const updateShaderColors = (
 
   if (!state.mount || !state.container) return;
 
-  const colorsChanged = JSON.stringify(colors) !== JSON.stringify(state.colors);
+  const colorsChanged = !colorsEqual(state.colors, colors);
 
   if (colorsChanged) {
     state.colors = colors;
@@ -334,12 +366,7 @@ export const updateShaderSettings = (
       return;
     }
 
-    const settingsChanged =
-      JSON.stringify(settings) !== JSON.stringify(state.lastSettings);
-    const multipliersChanged =
-      JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
-
-    if (!settingsChanged && !multipliersChanged) {
+    if (settingsEqual(state.lastSettings, settings) && multipliersEqual(state.lastMultipliers, multipliers)) {
       return;
     }
 
@@ -385,7 +412,6 @@ export const hasShader = (location?: string): boolean => {
 };
 
 export const getCurrentColors = (): string[] => {
-  logger.log("getCurrentColors called - lastKnownColors:", lastKnownColors);
   return [...lastKnownColors];
 };
 

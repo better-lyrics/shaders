@@ -43,6 +43,8 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     audioSpeedMultiplier:
       "How much to multiply animation speed when a beat is detected. Applied momentarily on each beat.",
     audioScaleBoost: "Percentage to boost scale when a beat is detected. Creates a pulsing zoom effect on beats.",
+    audioBeatThreshold:
+      "Audio amplitude threshold for beat detection. Lower values = more sensitive (triggers on quieter sounds), higher values = less sensitive (requires louder peaks).",
     vibrantSaturationThreshold:
       "Minimum saturation percentage for a color to be considered vibrant. Colors above this threshold are counted toward the vibrant ratio.",
     vibrantRatioThreshold:
@@ -97,6 +99,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
                   "audioResponsive",
                   "audioSpeedMultiplier",
                   "audioScaleBoost",
+                  "audioBeatThreshold",
                   "showLogs",
                   "boostDullColors",
                   "showOnBrowsePages",
@@ -164,6 +167,14 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
                 onChange={onSettingChange}
                 onReset={handleReset}
                 hint={sliderHints.audioScaleBoost}
+              />
+              <ControlSlider
+                key="audioBeatThreshold"
+                keyName="audioBeatThreshold"
+                value={settings.audioBeatThreshold}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.audioBeatThreshold}
               />
             </>
           )}

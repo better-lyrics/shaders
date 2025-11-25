@@ -53,6 +53,10 @@ export const getControlConfig = (key: string): ControlConfig => {
     min = 0;
     max = 100;
     step = 1;
+  } else if (key === "audioBeatThreshold") {
+    min = 0.01;
+    max = 0.75;
+    step = 0.005;
   }
 
   return { min, max, step };

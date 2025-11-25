@@ -9,6 +9,8 @@ interface AudioAnalysisState {
   isInitialized: boolean;
   dataArray: Uint8Array | null;
   lastAnalysisTime: number;
+  initTimeoutId: number | null;
+  resumeContextHandler: (() => Promise<void>) | null;
 }
 
 const state: AudioAnalysisState = {
@@ -19,31 +21,44 @@ const state: AudioAnalysisState = {
   isInitialized: false,
   dataArray: null,
   lastAnalysisTime: 0,
+  initTimeoutId: null,
+  resumeContextHandler: null,
 };
 
 const ANALYSIS_INTERVAL = 100;
+
+const reusableMultipliers: DynamicMultipliers = { speedMultiplier: 1, scaleMultiplier: 1 };
 
 export const initializeAudioAnalysis = async (): Promise<void> => {
   try {
     state.element = document.querySelector("audio, video") as HTMLAudioElement;
     if (!state.element) {
-      setTimeout(initializeAudioAnalysis, 1000);
+      state.initTimeoutId = window.setTimeout(initializeAudioAnalysis, 1000);
       return;
     }
+    state.initTimeoutId = null;
 
     state.context = new (window.AudioContext || (window as any).webkitAudioContext)();
 
     if (state.context.state === "suspended") {
-      const resumeContext = async () => {
+      if (state.resumeContextHandler) {
+        document.removeEventListener("click", state.resumeContextHandler);
+        document.removeEventListener("keydown", state.resumeContextHandler);
+      }
+
+      state.resumeContextHandler = async () => {
         if (state.context && state.context.state === "suspended") {
           await state.context.resume();
         }
-        document.removeEventListener("click", resumeContext);
-        document.removeEventListener("keydown", resumeContext);
+        if (state.resumeContextHandler) {
+          document.removeEventListener("click", state.resumeContextHandler);
+          document.removeEventListener("keydown", state.resumeContextHandler);
+          state.resumeContextHandler = null;
+        }
       };
 
-      document.addEventListener("click", resumeContext);
-      document.addEventListener("keydown", resumeContext);
+      document.addEventListener("click", state.resumeContextHandler);
+      document.addEventListener("keydown", state.resumeContextHandler);
     }
 
     state.analyser = state.context.createAnalyser();
@@ -80,23 +95,22 @@ const analyzeAudioFrame = (
     let peak = 0;
     const length = state.dataArray.length;
 
+    const threshold = settings.audioBeatThreshold;
+
     for (let i = 0; i < length; i++) {
       const amplitude = Math.abs(state.dataArray[i] - 128) / 128;
       if (amplitude > peak) {
         peak = amplitude;
-        if (peak > 0.125) break;
+        if (peak > threshold) break;
       }
     }
 
-    const isBeat = peak > 0.125;
+    const isBeat = peak > threshold;
 
-    const speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
-    const scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
+    reusableMultipliers.speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
+    reusableMultipliers.scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
 
-    onBeatDetected({
-      speedMultiplier,
-      scaleMultiplier,
-    });
+    onBeatDetected(reusableMultipliers);
 
     state.lastAnalysisTime = timestamp;
   }
@@ -120,6 +134,17 @@ export const stopAudioAnalysis = (): void => {
   if (state.rafId !== null) {
     cancelAnimationFrame(state.rafId);
     state.rafId = null;
+  }
+
+  if (state.initTimeoutId !== null) {
+    clearTimeout(state.initTimeoutId);
+    state.initTimeoutId = null;
+  }
+
+  if (state.resumeContextHandler) {
+    document.removeEventListener("click", state.resumeContextHandler);
+    document.removeEventListener("keydown", state.resumeContextHandler);
+    state.resumeContextHandler = null;
   }
 
   if (state.context) {

@@ -22,6 +22,11 @@ let lastImageSrc = "";
 let currentAlbumArtUrl = "";
 let albumSaveDebounceTimer: NodeJS.Timeout | null = null;
 
+let videoIdCheckIntervalId: number | null = null;
+let songImageObserver: MutationObserver | null = null;
+let playerPageObserver: MutationObserver | null = null;
+let waitForSongImageTimeoutId: number | null = null;
+
 const debouncedSaveAlbumColors = (
   albumUrl: string,
   colors: string[],
@@ -120,7 +125,8 @@ const updateGradientSettings = (settings: GradientSettings): void => {
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
   const audioSettingsChanged =
     gradientSettings.audioSpeedMultiplier !== settings.audioSpeedMultiplier ||
-    gradientSettings.audioScaleBoost !== settings.audioScaleBoost;
+    gradientSettings.audioScaleBoost !== settings.audioScaleBoost ||
+    gradientSettings.audioBeatThreshold !== settings.audioBeatThreshold;
   const boostSettingsChanged =
     gradientSettings.boostDullColors !== settings.boostDullColors ||
     gradientSettings.vibrantSaturationThreshold !== settings.vibrantSaturationThreshold ||
@@ -362,7 +368,7 @@ const initializeApp = async (): Promise<void> => {
       }, 300);
     };
 
-    const songImageObserver = new MutationObserver(mutations => {
+    songImageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
         if (mutation.type === "attributes" && mutation.attributeName === "src") {
           debouncedUpdate();
@@ -377,15 +383,16 @@ const initializeApp = async (): Promise<void> => {
 
     const waitForSongImage = () => {
       const songImage = document.getElementById("song-image");
-      if (songImage) {
+      if (songImage && songImageObserver) {
         songImageObserver.observe(songImage, {
           childList: true,
           subtree: true,
           attributes: true,
           attributeFilter: ["src"],
         });
+        waitForSongImageTimeoutId = null;
       } else {
-        setTimeout(waitForSongImage, 1000);
+        waitForSongImageTimeoutId = window.setTimeout(waitForSongImage, 1000);
       }
     };
 
@@ -400,9 +407,9 @@ const initializeApp = async (): Promise<void> => {
         debouncedUpdate();
       }
     };
-    setInterval(checkForVideoIdChange, 1000);
+    videoIdCheckIntervalId = window.setInterval(checkForVideoIdChange, 1000);
 
-    const playerPageObserver = new MutationObserver(mutations => {
+    playerPageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
         if (mutation.type === "childList") {
           const addedPlayerPage = Array.from(mutation.addedNodes).some(
@@ -430,12 +437,39 @@ const initializeApp = async (): Promise<void> => {
   }, 0);
 };
 
-window.addEventListener("beforeunload", () => {
+const cleanup = () => {
+  if (videoIdCheckIntervalId !== null) {
+    clearInterval(videoIdCheckIntervalId);
+    videoIdCheckIntervalId = null;
+  }
+
+  if (waitForSongImageTimeoutId !== null) {
+    clearTimeout(waitForSongImageTimeoutId);
+    waitForSongImageTimeoutId = null;
+  }
+
+  if (songImageObserver) {
+    songImageObserver.disconnect();
+    songImageObserver = null;
+  }
+
+  if (playerPageObserver) {
+    playerPageObserver.disconnect();
+    playerPageObserver = null;
+  }
+
+  if (albumSaveDebounceTimer) {
+    clearTimeout(albumSaveDebounceTimer);
+    albumSaveDebounceTimer = null;
+  }
+
   audioAnalysis.stopAudioAnalysis();
   shaderManager.destroyShader();
   shaderManager.clearColorVectorCache();
   colorExtraction.clearColorCache();
-});
+};
+
+window.addEventListener("beforeunload", cleanup);
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeApp);

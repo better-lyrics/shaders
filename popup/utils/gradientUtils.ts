@@ -9,6 +9,7 @@ export const getControlLabel = (key: string): string => {
   const labels: Record<string, string> = {
     audioSpeedMultiplier: "Beat Speed Multiplier",
     audioScaleBoost: "Beat Scale Boost",
+    audioBeatThreshold: "Beat Sensitivity",
     offsetX: "Offset X",
     offsetY: "Offset Y",
     vibrantSaturationThreshold: "Vibrant Saturation Threshold",
