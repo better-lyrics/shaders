@@ -326,19 +326,10 @@ export const updateShaderSettings = (
   multipliers: DynamicMultipliers,
   location?: string
 ): void => {
-  logger.log(
-    `[SHADER] updateShaderSettings called: location=${location}, shaderCount=${shaders.size}`
-  );
-
   const updateForLocation = (loc: string) => {
     const state = getShaderState(loc);
 
     if (!state.mount || !state.container || state.colorVectors.length === 0) {
-      logger.log(
-        `[SHADER] ${loc}: skipped (mount=${!!state.mount}, container=${!!state.container}, colors=${
-          state.colorVectors.length
-        })`
-      );
       return;
     }
 
@@ -348,7 +339,6 @@ export const updateShaderSettings = (
       JSON.stringify(multipliers) !== JSON.stringify(state.lastMultipliers);
 
     if (!settingsChanged && !multipliersChanged) {
-      logger.log(`[SHADER] ${loc}: no changes, skipping`);
       return;
     }
 
@@ -358,11 +348,6 @@ export const updateShaderSettings = (
       multipliers
     );
     const speed = settings.speed * multipliers.speedMultiplier;
-    const scale = uniforms.u_scale;
-
-    logger.log(
-      `[SHADER] ${loc}: UPDATING - speed=${speed}, u_scale=${scale}, speedMult=${multipliers.speedMultiplier}, scaleMult=${multipliers.scaleMultiplier}`
-    );
 
     state.mount.setUniforms(uniforms as any);
     state.mount.setSpeed(speed);
