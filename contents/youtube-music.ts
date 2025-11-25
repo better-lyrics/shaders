@@ -118,6 +118,9 @@ const updateGradientColors = async (
 const updateGradientSettings = (settings: GradientSettings): void => {
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
+  const audioSettingsChanged =
+    gradientSettings.audioSpeedMultiplier !== settings.audioSpeedMultiplier ||
+    gradientSettings.audioScaleBoost !== settings.audioScaleBoost;
   const boostSettingsChanged =
     gradientSettings.boostDullColors !== settings.boostDullColors ||
     gradientSettings.vibrantSaturationThreshold !== settings.vibrantSaturationThreshold ||
@@ -128,7 +131,7 @@ const updateGradientSettings = (settings: GradientSettings): void => {
 
   logger.setEnabled(settings.showLogs);
 
-  if (wasAudioResponsive !== settings.audioResponsive) {
+  if (wasAudioResponsive !== settings.audioResponsive || audioSettingsChanged) {
     handleAudioResponsiveToggle();
   }
 

@@ -75,8 +75,7 @@ const analyzeAudioFrame = (
   }
 
   if (timestamp - state.lastAnalysisTime >= ANALYSIS_INTERVAL) {
-    // @ts-ignore - Type compatibility issue with Web Audio API
-    state.analyser.getByteTimeDomainData(state.dataArray);
+    state.analyser.getByteTimeDomainData(state.dataArray as Uint8Array<ArrayBuffer>);
 
     let peak = 0;
     const length = state.dataArray.length;
@@ -85,11 +84,11 @@ const analyzeAudioFrame = (
       const amplitude = Math.abs(state.dataArray[i] - 128) / 128;
       if (amplitude > peak) {
         peak = amplitude;
-        if (peak > 0.75) break;
+        if (peak > 0.125) break;
       }
     }
 
-    const isBeat = peak > 0.75;
+    const isBeat = peak > 0.125;
 
     const speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
     const scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
