@@ -55,7 +55,10 @@ const getCachedColorVector = (color: string): number[] => {
   return colorVectorCache.get(color)!;
 };
 
-const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean => {
+const settingsEqual = (
+  a: GradientSettings | null,
+  b: GradientSettings
+): boolean => {
   if (!a) return false;
   return (
     a.distortion === b.distortion &&
@@ -69,9 +72,15 @@ const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean
   );
 };
 
-const multipliersEqual = (a: DynamicMultipliers | null, b: DynamicMultipliers): boolean => {
+const multipliersEqual = (
+  a: DynamicMultipliers | null,
+  b: DynamicMultipliers
+): boolean => {
   if (!a) return false;
-  return a.speedMultiplier === b.speedMultiplier && a.scaleMultiplier === b.scaleMultiplier;
+  return (
+    a.speedMultiplier === b.speedMultiplier &&
+    a.scaleMultiplier === b.scaleMultiplier
+  );
 };
 
 const colorsEqual = (a: string[], b: string[]): boolean => {
@@ -208,7 +217,7 @@ export const createShader = async (
       width: calc(100% + var(--sidebar));
       height: calc(100% + 128px);
       pointer-events: none;
-      z-index: 0;
+      z-index: -1;
       opacity: 0;
       will-change: opacity;
       transition: opacity 0.5s ease-out;
@@ -366,7 +375,10 @@ export const updateShaderSettings = (
       return;
     }
 
-    if (settingsEqual(state.lastSettings, settings) && multipliersEqual(state.lastMultipliers, multipliers)) {
+    if (
+      settingsEqual(state.lastSettings, settings) &&
+      multipliersEqual(state.lastMultipliers, multipliers)
+    ) {
       return;
     }
 
