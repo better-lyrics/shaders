@@ -90,7 +90,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             label="Show on Browse Pages"
             value={settings.showOnBrowsePages}
             onChange={value => onToggleChange("showOnBrowsePages", value)}
-            hint="Displays the gradient shader on browse pages (homepage and search) using the current player colors."
+            hint="Displays the gradient shader on browse pages (homepage and search) using the current player colors. Warning: May cause degraded performance on lower-end devices."
           />
 
           <ControlToggle

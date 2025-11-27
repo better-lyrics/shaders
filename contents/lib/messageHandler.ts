@@ -1,8 +1,8 @@
 import type { GradientSettings } from "../../shared/constants/gradientSettings";
 
 interface MessageHandlers {
-  onColorsUpdate: (colors: string[], pageType?: "player" | "homepage" | "search") => void;
-  onSettingsUpdate: (settings: GradientSettings) => void;
+  onColorsUpdate: (colors: string[], pageType?: "player" | "homepage" | "search") => Promise<void>;
+  onSettingsUpdate: (settings: GradientSettings) => Promise<void>;
   getCurrentData: () => {
     colors: string[];
     songTitle: string;
@@ -20,14 +20,16 @@ export const setupMessageListener = (handlers: MessageHandlers): void => {
     }
 
     if (message.action === "updateColors") {
-      handlers.onColorsUpdate(message.colors);
-      sendResponse({ success: true });
+      handlers.onColorsUpdate(message.colors).then(() => {
+        sendResponse({ success: true });
+      });
       return true;
     }
 
     if (message.action === "updateGradientSettings") {
-      handlers.onSettingsUpdate(message.settings);
-      sendResponse({ success: true });
+      handlers.onSettingsUpdate(message.settings).then(() => {
+        sendResponse({ success: true });
+      });
       return true;
     }
   });

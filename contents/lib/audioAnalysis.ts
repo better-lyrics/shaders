@@ -141,21 +141,11 @@ export const stopAudioAnalysis = (): void => {
     state.initTimeoutId = null;
   }
 
-  if (state.resumeContextHandler) {
-    document.removeEventListener("click", state.resumeContextHandler);
-    document.removeEventListener("keydown", state.resumeContextHandler);
-    state.resumeContextHandler = null;
-  }
+  // NOTE: We intentionally do NOT close the AudioContext or disconnect nodes
+  // because createMediaElementSource() permanently routes audio through Web Audio API.
+  // Closing the context would break audio playback entirely.
+  // The audio routing (source -> analyser -> destination) must remain intact.
 
-  if (state.context) {
-    state.context.close();
-    state.context = null;
-  }
-
-  state.analyser = null;
-  state.element = null;
-  state.dataArray = null;
-  state.isInitialized = false;
   state.lastAnalysisTime = 0;
 };
 

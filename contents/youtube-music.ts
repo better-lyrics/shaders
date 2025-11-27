@@ -120,7 +120,7 @@ const updateGradientColors = async (
   }
 };
 
-const updateGradientSettings = (settings: GradientSettings): void => {
+const updateGradientSettings = async (settings: GradientSettings): Promise<void> => {
   const wasEnabled = gradientSettings.enabled;
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
@@ -146,7 +146,7 @@ const updateGradientSettings = (settings: GradientSettings): void => {
       audioAnalysis.stopAudioAnalysis();
     } else {
       logger.log("Shaders enabled - reinitializing");
-      checkAndUpdateGradient();
+      await extractAndUpdateColors(true, false);
       if (settings.audioResponsive) {
         audioAnalysis.startAudioAnalysis(settings, handleBeatDetected);
       }
@@ -164,13 +164,13 @@ const updateGradientSettings = (settings: GradientSettings): void => {
   }
 
   if (wasShowOnBrowsePages !== settings.showOnBrowsePages) {
-    checkAndUpdateGradient();
+    await checkAndUpdateGradient();
   }
 
   if (boostSettingsChanged) {
     logger.log("Boost settings changed - re-extracting colors");
     colorExtraction.clearColorCache();
-    extractAndUpdateColors(true);
+    await extractAndUpdateColors(true, true);
   }
 
   if (shaderManager.hasShader()) {
@@ -178,8 +178,11 @@ const updateGradientSettings = (settings: GradientSettings): void => {
   }
 };
 
-const extractAndUpdateColors = async (forceExtraction: boolean = false): Promise<void> => {
-  logger.log("Extracting colors from album art...", { forceExtraction });
+const extractAndUpdateColors = async (
+  forceUpdate: boolean = false,
+  skipSavedColors: boolean = false
+): Promise<void> => {
+  logger.log("Extracting colors from album art...", { forceUpdate, skipSavedColors });
   const result = await colorExtraction.extractColorsFromAlbumArt(gradientSettings.boostDullColors, gradientSettings);
 
   if (!result) {
@@ -197,9 +200,9 @@ const extractAndUpdateColors = async (forceExtraction: boolean = false): Promise
   currentAlbumArtUrl = result.imageSrc;
 
   let colorsToUse = result.colors;
-  let shouldUpdate = isNewImage || forceExtraction;
+  let shouldUpdate = isNewImage || forceUpdate;
 
-  if (gradientSettings.rememberAlbumSettings && !forceExtraction) {
+  if (gradientSettings.rememberAlbumSettings && !skipSavedColors) {
     const savedAlbumData = await storage.loadAlbumSettings(result.imageSrc);
     if (savedAlbumData) {
       logger.log("Found saved album data", {
@@ -233,8 +236,8 @@ const extractAndUpdateColors = async (forceExtraction: boolean = false): Promise
     return;
   }
 
-  if (forceExtraction) {
-    logger.log("Force extraction - using freshly extracted colors, NOT saving to album storage");
+  if (skipSavedColors) {
+    logger.log("Skip saved colors - using freshly extracted colors, NOT saving to album storage");
   }
 
   if (colorsToUse.length > 0) {
