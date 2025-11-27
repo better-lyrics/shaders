@@ -95,6 +95,46 @@ const boostDullColorSaturation = (
   });
 };
 
+// Helper to process extracted colors
+const processExtractedColors = (
+  colors: number[][] | null,
+  primaryColor: number[] | null,
+  boostDullColors: boolean,
+  settings?: GradientSettings
+): string[] => {
+  if (!colors || !primaryColor) {
+    logger.error("ColorThief returned null - image may be too small or invalid");
+    return [];
+  }
+
+  if (!Array.isArray(colors) || !Array.isArray(primaryColor) || primaryColor.length < 3) {
+    logger.error("ColorThief returned invalid format");
+    return [];
+  }
+
+  const validColors = colors.filter(c => c && Array.isArray(c) && c.length >= 3);
+  if (validColors.length === 0) {
+    logger.error("ColorThief returned no valid colors");
+    return [];
+  }
+
+  const colorsWithPrimary = [primaryColor, ...validColors];
+  let colorsHslObjects = colorsWithPrimary
+    .filter(color => color && Array.isArray(color) && color.length >= 3)
+    .map(color => {
+      const [r, g, b] = color;
+      return rgbToHsl(r, g, b);
+    });
+
+  if (boostDullColors && settings) {
+    colorsHslObjects = boostDullColorSaturation(colorsHslObjects, settings);
+  }
+
+  return colorsHslObjects.map(
+    ({ hue, saturation, lightness }) => `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`
+  );
+};
+
 export const extractColorsFromImage = async (
   img: HTMLImageElement,
   boostDullColors: boolean = true,
@@ -106,12 +146,33 @@ export const extractColorsFromImage = async (
     return imageCache.get(cacheKey)!;
   }
 
-  // Skip data URI placeholders (1x1 transparent GIFs, etc)
   if (img.src.startsWith("data:")) {
     logger.log("Skipping data URI placeholder image");
     return [];
   }
 
+  if (img.naturalWidth < 3 || img.naturalHeight < 3) {
+    logger.log("Image too small for color extraction:", img.naturalWidth, "x", img.naturalHeight);
+    return [];
+  }
+
+  // Try direct extraction first (faster, no network overhead)
+  try {
+    const colors = colorThief.getPalette(img, 4, 1);
+    const primaryColor = colorThief.getColor(img, 1);
+    const result = processExtractedColors(colors, primaryColor, boostDullColors, settings);
+
+    if (result.length > 0) {
+      logger.log("Direct color extraction succeeded");
+      manageCacheSize();
+      imageCache.set(cacheKey, result);
+      return result;
+    }
+  } catch {
+    logger.log("Direct extraction failed (likely CORS), falling back to fetch");
+  }
+
+  // Fallback: fetch and create proxy image for CORS-restricted images
   try {
     const response = await fetch(img.src);
     const blob = await response.blob();
@@ -129,7 +190,6 @@ export const extractColorsFromImage = async (
             return;
           }
 
-          // Skip images that are too small for ColorThief (need at least 3x3)
           if (proxyImg.naturalWidth < 3 || proxyImg.naturalHeight < 3) {
             logger.log("Image too small for color extraction:", proxyImg.naturalWidth, "x", proxyImg.naturalHeight);
             URL.revokeObjectURL(imageUrl);
@@ -138,7 +198,6 @@ export const extractColorsFromImage = async (
           }
 
           let colors, primaryColor;
-
           try {
             colors = colorThief.getPalette(proxyImg, 4, 1);
             primaryColor = colorThief.getColor(proxyImg, 1);
@@ -149,55 +208,14 @@ export const extractColorsFromImage = async (
             return;
           }
 
-          logger.log("ColorThief results - colors:", colors, "primaryColor:", primaryColor);
-
-          if (!colors || !primaryColor) {
-            logger.error("ColorThief returned null - image may be too small or invalid");
-            URL.revokeObjectURL(imageUrl);
-            resolve([]);
-            return;
-          }
-
-          // Validate that colors is an array and primaryColor is an array with 3 elements
-          if (!Array.isArray(colors) || !Array.isArray(primaryColor) || primaryColor.length < 3) {
-            logger.error("ColorThief returned invalid format - colors:", colors, "primaryColor:", primaryColor);
-            URL.revokeObjectURL(imageUrl);
-            resolve([]);
-            return;
-          }
-
-          // Filter out any null/invalid colors from the palette array
-          const validColors = colors.filter(c => c && Array.isArray(c) && c.length >= 3);
-
-          if (validColors.length === 0) {
-            logger.error("ColorThief returned no valid colors");
-            URL.revokeObjectURL(imageUrl);
-            resolve([]);
-            return;
-          }
-
-          const colorsWithPrimary = [primaryColor, ...validColors];
-          let colorsHslObjects = colorsWithPrimary
-            .filter(color => color && Array.isArray(color) && color.length >= 3)
-            .map(color => {
-              const [r, g, b] = color;
-              return rgbToHsl(r, g, b);
-            });
-
-          if (boostDullColors && settings) {
-            colorsHslObjects = boostDullColorSaturation(colorsHslObjects, settings);
-          }
-
-          const colorsHsl = colorsHslObjects.map(
-            ({ hue, saturation, lightness }) =>
-              `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`
-          );
-
-          manageCacheSize();
-          imageCache.set(cacheKey, colorsHsl);
-
+          const result = processExtractedColors(colors, primaryColor, boostDullColors, settings);
           URL.revokeObjectURL(imageUrl);
-          resolve(colorsHsl);
+
+          if (result.length > 0) {
+            manageCacheSize();
+            imageCache.set(cacheKey, result);
+          }
+          resolve(result);
         } catch (error) {
           logger.error("ColorThief error:", error);
           URL.revokeObjectURL(imageUrl);
@@ -235,21 +253,56 @@ const createImageFromUrl = (url: string): Promise<HTMLImageElement | null> => {
 };
 
 const waitForAlbumArt = async (maxWaitMs: number = 2000): Promise<HTMLImageElement | null> => {
-  const startTime = Date.now();
-  const checkInterval = 100;
+  const songImageDiv = document.getElementById("song-image");
+  if (!songImageDiv) return null;
 
-  while (Date.now() - startTime < maxWaitMs) {
-    const songImageDiv = document.getElementById("song-image");
-    const albumArt = songImageDiv?.querySelector("img") as HTMLImageElement;
-
-    if (albumArt?.complete && albumArt.naturalHeight > 0 && !albumArt.src.startsWith("data:")) {
-      return albumArt;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  // Check if already available
+  const existingImg = songImageDiv.querySelector("img") as HTMLImageElement;
+  if (existingImg?.complete && existingImg.naturalHeight > 0 && !existingImg.src.startsWith("data:")) {
+    return existingImg;
   }
 
-  return null;
+  // Use MutationObserver instead of polling (more efficient)
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, maxWaitMs);
+
+    const checkImage = () => {
+      const img = songImageDiv.querySelector("img") as HTMLImageElement;
+      if (img?.complete && img.naturalHeight > 0 && !img.src.startsWith("data:")) {
+        clearTimeout(timeout);
+        observer.disconnect();
+        resolve(img);
+        return true;
+      }
+      return false;
+    };
+
+    const observer = new MutationObserver(() => {
+      checkImage();
+    });
+
+    observer.observe(songImageDiv, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["src"],
+    });
+
+    // Also listen for image load event in case image is loading
+    const img = songImageDiv.querySelector("img") as HTMLImageElement;
+    if (img) {
+      img.addEventListener(
+        "load",
+        () => {
+          if (!checkImage()) return;
+        },
+        { once: true }
+      );
+    }
+  });
 };
 
 const findValidImage = async (): Promise<HTMLImageElement | null> => {

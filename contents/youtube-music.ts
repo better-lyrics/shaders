@@ -18,11 +18,20 @@ export const config: PlasmoCSConfig = {
 
 let gradientSettings: GradientSettings;
 let dynamicMultipliers: DynamicMultipliers = { ...DEFAULT_DYNAMIC_MULTIPLIERS };
+
+// Efficient array comparison without JSON.stringify overhead
+const colorsEqual = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
 let lastImageSrc = "";
 let currentAlbumArtUrl = "";
 let albumSaveDebounceTimer: NodeJS.Timeout | null = null;
 
-let videoIdCheckIntervalId: number | null = null;
+let navigationHandler: (() => void) | null = null;
 let songImageObserver: MutationObserver | null = null;
 let playerPageObserver: MutationObserver | null = null;
 let waitForSongImageTimeoutId: number | null = null;
@@ -219,7 +228,7 @@ const extractAndUpdateColors = async (
         colorsToUse = savedAlbumData.colors;
         logger.log("Using saved colors (manually modified or boost disabled)");
         const currentColors = shaderManager.getCurrentColors();
-        if (JSON.stringify(currentColors) !== JSON.stringify(colorsToUse)) {
+        if (!colorsEqual(currentColors, colorsToUse)) {
           shouldUpdate = true;
         }
       } else {
@@ -361,22 +370,20 @@ const initializeApp = async (): Promise<void> => {
   setTimeout(async () => {
     await checkAndUpdateGradient();
 
-    const retryExtraction = async (retries: number = 10): Promise<void> => {
-      if (retries <= 0) {
-        logger.log("Max retries reached, giving up on color extraction");
-        return;
-      }
+    // Iterative retry loop instead of recursive (reduces stack pressure)
+    for (let retries = 10; retries > 0; retries--) {
       const colors = shaderManager.getCurrentColors();
-      if (colors.length === 0) {
-        logger.log(`No colors yet, retrying extraction... (${retries} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await checkAndUpdateGradient();
-        await retryExtraction(retries - 1);
-      } else {
+      if (colors.length > 0) {
         logger.log("Colors found, stopping retry");
+        break;
       }
-    };
-    await retryExtraction();
+      logger.log(`No colors yet, retrying extraction... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await checkAndUpdateGradient();
+      if (retries === 1) {
+        logger.log("Max retries reached, giving up on color extraction");
+      }
+    }
 
     setTimeout(async () => {
       await audioAnalysis.initializeAudioAnalysis();
@@ -402,11 +409,11 @@ const initializeApp = async (): Promise<void> => {
 
     songImageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
-        if (mutation.type === "attributes" && mutation.attributeName === "src") {
-          debouncedUpdate();
-          break;
-        }
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+        // Consolidated condition check
+        if (
+          (mutation.type === "attributes" && mutation.attributeName === "src") ||
+          (mutation.type === "childList" && mutation.addedNodes.length > 0)
+        ) {
           debouncedUpdate();
           break;
         }
@@ -430,8 +437,9 @@ const initializeApp = async (): Promise<void> => {
 
     waitForSongImage();
 
+    // Event-based navigation detection instead of polling (eliminates 60+ URL parses/minute)
     let lastVideoId = new URL(window.location.href).searchParams.get("v");
-    const checkForVideoIdChange = () => {
+    navigationHandler = () => {
       const currentVideoId = new URL(window.location.href).searchParams.get("v");
       if (currentVideoId && currentVideoId !== lastVideoId) {
         logger.log("Video ID changed:", lastVideoId, "->", currentVideoId);
@@ -439,7 +447,10 @@ const initializeApp = async (): Promise<void> => {
         debouncedUpdate();
       }
     };
-    videoIdCheckIntervalId = window.setInterval(checkForVideoIdChange, 1000);
+    // YouTube Music fires yt-navigate-finish on SPA navigation
+    document.addEventListener("yt-navigate-finish", navigationHandler);
+    // Also listen for popstate for browser back/forward
+    window.addEventListener("popstate", navigationHandler);
 
     playerPageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
@@ -470,9 +481,10 @@ const initializeApp = async (): Promise<void> => {
 };
 
 const cleanup = () => {
-  if (videoIdCheckIntervalId !== null) {
-    clearInterval(videoIdCheckIntervalId);
-    videoIdCheckIntervalId = null;
+  if (navigationHandler) {
+    document.removeEventListener("yt-navigate-finish", navigationHandler);
+    window.removeEventListener("popstate", navigationHandler);
+    navigationHandler = null;
   }
 
   if (waitForSongImageTimeoutId !== null) {

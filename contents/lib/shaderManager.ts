@@ -38,14 +38,23 @@ const colorVectorCache = new Map<string, number[]>();
 const MAX_COLOR_CACHE_SIZE = 100;
 
 const getCachedColorVector = (color: string): number[] => {
-  if (!colorVectorCache.has(color)) {
-    if (colorVectorCache.size >= MAX_COLOR_CACHE_SIZE) {
-      const firstKey = colorVectorCache.keys().next().value;
-      if (firstKey) colorVectorCache.delete(firstKey);
-    }
-    colorVectorCache.set(color, getShaderColorFromString(color) as number[]);
+  if (colorVectorCache.has(color)) {
+    // LRU: Move to end (most recently used) by re-inserting
+    const vector = colorVectorCache.get(color)!;
+    colorVectorCache.delete(color);
+    colorVectorCache.set(color, vector);
+    return vector;
   }
-  return colorVectorCache.get(color)!;
+
+  // Evict oldest (first) entry if at capacity
+  if (colorVectorCache.size >= MAX_COLOR_CACHE_SIZE) {
+    const firstKey = colorVectorCache.keys().next().value;
+    if (firstKey) colorVectorCache.delete(firstKey);
+  }
+
+  const vector = getShaderColorFromString(color) as number[];
+  colorVectorCache.set(color, vector);
+  return vector;
 };
 
 const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean => {
