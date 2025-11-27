@@ -121,6 +121,7 @@ const updateGradientColors = async (
 };
 
 const updateGradientSettings = (settings: GradientSettings): void => {
+  const wasEnabled = gradientSettings.enabled;
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
   const audioSettingsChanged =
@@ -136,6 +137,27 @@ const updateGradientSettings = (settings: GradientSettings): void => {
   gradientSettings = settings;
 
   logger.setEnabled(settings.showLogs);
+
+  // Handle enabled toggle
+  if (wasEnabled !== settings.enabled) {
+    if (!settings.enabled) {
+      logger.log("Shaders disabled - destroying all shaders");
+      shaderManager.destroyShader();
+      audioAnalysis.stopAudioAnalysis();
+    } else {
+      logger.log("Shaders enabled - reinitializing");
+      checkAndUpdateGradient();
+      if (settings.audioResponsive) {
+        audioAnalysis.startAudioAnalysis(settings, handleBeatDetected);
+      }
+    }
+    return;
+  }
+
+  // Skip all updates if shaders are disabled
+  if (!settings.enabled) {
+    return;
+  }
 
   if (wasAudioResponsive !== settings.audioResponsive || audioSettingsChanged) {
     handleAudioResponsiveToggle();
@@ -243,6 +265,12 @@ const destroyBrowsePageShaders = (): void => {
 };
 
 const checkAndUpdateGradient = async (): Promise<void> => {
+  // Skip all gradient updates if shaders are disabled
+  if (!gradientSettings.enabled) {
+    logger.log("Shaders disabled - skipping gradient update");
+    return;
+  }
+
   const pageType = getCurrentPageType();
   const hasPlayerShader = shaderManager.hasShader("player");
   const hasHomepageShader = shaderManager.hasShader("homepage");
@@ -310,6 +338,7 @@ const initializeApp = async (): Promise<void> => {
 
   logger.log("Better Lyrics Shaders: Initializing...");
   logger.log("Loaded settings:", gradientSettings);
+  logger.log("Shaders enabled:", gradientSettings.enabled);
   shaderManager.cleanupOrphanedGradients();
 
   messageHandler.setupMessageListener({
@@ -348,7 +377,7 @@ const initializeApp = async (): Promise<void> => {
 
     setTimeout(async () => {
       await audioAnalysis.initializeAudioAnalysis();
-      if (gradientSettings.audioResponsive) {
+      if (gradientSettings.enabled && gradientSettings.audioResponsive) {
         audioAnalysis.startAudioAnalysis(gradientSettings, handleBeatDetected);
       }
     }, 2000);

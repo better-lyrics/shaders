@@ -1,12 +1,5 @@
-import {
-  ShaderMount,
-  meshGradientFragmentShader,
-  getShaderColorFromString,
-} from "@paper-design/shaders";
-import type {
-  DynamicMultipliers,
-  GradientSettings,
-} from "../../shared/constants/gradientSettings";
+import { ShaderMount, meshGradientFragmentShader, getShaderColorFromString } from "@paper-design/shaders";
+import type { DynamicMultipliers, GradientSettings } from "../../shared/constants/gradientSettings";
 import { logger } from "../../shared/utils/logger";
 
 interface ShaderState {
@@ -55,10 +48,7 @@ const getCachedColorVector = (color: string): number[] => {
   return colorVectorCache.get(color)!;
 };
 
-const settingsEqual = (
-  a: GradientSettings | null,
-  b: GradientSettings
-): boolean => {
+const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean => {
   if (!a) return false;
   return (
     a.distortion === b.distortion &&
@@ -72,15 +62,9 @@ const settingsEqual = (
   );
 };
 
-const multipliersEqual = (
-  a: DynamicMultipliers | null,
-  b: DynamicMultipliers
-): boolean => {
+const multipliersEqual = (a: DynamicMultipliers | null, b: DynamicMultipliers): boolean => {
   if (!a) return false;
-  return (
-    a.speedMultiplier === b.speedMultiplier &&
-    a.scaleMultiplier === b.scaleMultiplier
-  );
+  return a.speedMultiplier === b.speedMultiplier && a.scaleMultiplier === b.scaleMultiplier;
 };
 
 const colorsEqual = (a: string[], b: string[]): boolean => {
@@ -130,13 +114,11 @@ const getTargetElement = (targetSelector: string): Element | null => {
   if (targetSelector === "search-page") {
     return document.getElementById("search-page");
   }
-  return document.querySelector(
-    ".background-gradient.style-scope.ytmusic-browse-response"
-  );
+  return document.querySelector(".background-gradient.style-scope.ytmusic-browse-response");
 };
 
 const waitForTargetReady = async (targetSelector: string): Promise<boolean> => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const checkReady = () => {
       const target = getTargetElement(targetSelector);
       const hasContent = target && target.children.length > 0;
@@ -173,21 +155,14 @@ export const createShader = async (
 
   const targetElement = getTargetElement(targetSelector);
 
-  logger.log(
-    "createShader - targetSelector:",
-    targetSelector,
-    "targetElement found:",
-    !!targetElement
-  );
+  logger.log("createShader - targetSelector:", targetSelector, "targetElement found:", !!targetElement);
 
   if (!targetElement) {
     logger.error("Target element not found for selector:", targetSelector);
     return false;
   }
 
-  const existingGradient = targetElement.querySelector(
-    `#better-lyrics-gradient-${location}`
-  );
+  const existingGradient = targetElement.querySelector(`#better-lyrics-gradient-${location}`);
   if (existingGradient) {
     existingGradient.remove();
   }
@@ -233,11 +208,7 @@ export const createShader = async (
   lastKnownColors = [...colors];
   logger.log("Saved lastKnownColors:", lastKnownColors);
 
-  const uniforms = buildMeshGradientUniforms(
-    state.colorVectors,
-    settings,
-    multipliers
-  );
+  const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
   const speed = settings.speed * multipliers.speedMultiplier;
 
   // Performance optimizations: reduce pixel count and anti-aliasing for better GPU performance
@@ -257,7 +228,7 @@ export const createShader = async (
 
   // Setup visibility detection for performance optimization
   state.observer = new IntersectionObserver(
-    (entries) => {
+    entries => {
       const entry = entries[0];
       const isVisible = entry.isIntersecting;
 
@@ -265,8 +236,7 @@ export const createShader = async (
         state.isVisible = isVisible;
         if (state.mount) {
           if (isVisible && state.lastSettings && state.lastMultipliers) {
-            const speed =
-              state.lastSettings.speed * state.lastMultipliers.speedMultiplier;
+            const speed = state.lastSettings.speed * state.lastMultipliers.speedMultiplier;
             state.mount.setSpeed(speed);
           } else if (!isVisible) {
             state.mount.setSpeed(0);
@@ -339,26 +309,16 @@ export const updateShaderColors = (
     state.colors = colors;
     state.colorVectors = colors.map(getCachedColorVector);
     lastKnownColors = [...colors];
-    logger.log(
-      `Updated colors for ${location}, lastKnownColors:`,
-      lastKnownColors
-    );
+    logger.log(`Updated colors for ${location}, lastKnownColors:`, lastKnownColors);
   }
 
-  const uniforms = buildMeshGradientUniforms(
-    state.colorVectors,
-    settings,
-    multipliers
-  );
+  const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
   state.mount.setUniforms(uniforms as any);
 
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
-  if (
-    state.container &&
-    state.container.style.opacity !== settings.opacity.toString()
-  ) {
+  if (state.container && state.container.style.opacity !== settings.opacity.toString()) {
     state.container.style.opacity = settings.opacity.toString();
   }
 };
@@ -375,18 +335,11 @@ export const updateShaderSettings = (
       return;
     }
 
-    if (
-      settingsEqual(state.lastSettings, settings) &&
-      multipliersEqual(state.lastMultipliers, multipliers)
-    ) {
+    if (settingsEqual(state.lastSettings, settings) && multipliersEqual(state.lastMultipliers, multipliers)) {
       return;
     }
 
-    const uniforms = buildMeshGradientUniforms(
-      state.colorVectors,
-      settings,
-      multipliers
-    );
+    const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
     const speed = settings.speed * multipliers.speedMultiplier;
 
     state.mount.setUniforms(uniforms as any);
@@ -395,10 +348,7 @@ export const updateShaderSettings = (
     state.lastSettings = { ...settings };
     state.lastMultipliers = { ...multipliers };
 
-    if (
-      state.container &&
-      state.container.style.opacity !== settings.opacity.toString()
-    ) {
+    if (state.container && state.container.style.opacity !== settings.opacity.toString()) {
       state.container.style.opacity = settings.opacity.toString();
     }
   };
@@ -417,10 +367,7 @@ export const hasShader = (location?: string): boolean => {
     const state = getShaderState(location);
     return state.mount !== null && state.container !== null;
   }
-  return (
-    shaders.size > 0 &&
-    Array.from(shaders.values()).some((s) => s.mount !== null)
-  );
+  return shaders.size > 0 && Array.from(shaders.values()).some(s => s.mount !== null);
 };
 
 export const getCurrentColors = (): string[] => {
@@ -428,10 +375,8 @@ export const getCurrentColors = (): string[] => {
 };
 
 export const cleanupOrphanedGradients = (): void => {
-  const existingGradients = document.querySelectorAll(
-    "[id^='better-lyrics-gradient']"
-  );
-  existingGradients.forEach((gradient) => gradient.remove());
+  const existingGradients = document.querySelectorAll("[id^='better-lyrics-gradient']");
+  existingGradients.forEach(gradient => gradient.remove());
   logger.log("Cleaned up orphaned gradients:", existingGradients.length);
 };
 

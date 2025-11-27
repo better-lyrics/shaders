@@ -22,6 +22,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
 }) => {
   const handleReset = (key: keyof GradientSettings) => {
     if (
+      key === "enabled" ||
       key === "audioResponsive" ||
       key === "showLogs" ||
       key === "boostDullColors" ||
@@ -57,6 +58,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     <div className="tab-content">
       <div className="gradient-controls-section">
         <div className="controls-grid">
+          <ControlToggle
+            label="Enable Shaders"
+            value={settings.enabled}
+            onChange={value => onToggleChange("enabled", value)}
+            hint="Master toggle - Enables or disables the gradient shader effect entirely. Turn off to restore original YouTube Music appearance."
+          />
+
           <ControlToggle
             label="Audio Responsive"
             value={settings.audioResponsive}
@@ -96,6 +104,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             .filter(
               ([key]) =>
                 ![
+                  "enabled",
                   "audioResponsive",
                   "audioSpeedMultiplier",
                   "audioScaleBoost",

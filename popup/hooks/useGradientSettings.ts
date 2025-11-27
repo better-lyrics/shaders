@@ -1,6 +1,6 @@
 import { Storage } from "@plasmohq/storage";
 import { useStorage } from "@plasmohq/storage/hook";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_GRADIENT_SETTINGS,
   GRADIENT_SETTINGS_STORAGE_KEY,
@@ -10,7 +10,7 @@ import {
 const storage = new Storage();
 
 export const useGradientSettings = () => {
-  const [storedSettings, setStoredSettings] = useStorage<GradientSettings>(
+  const [storedSettings, setStoredSettings] = useStorage<Partial<GradientSettings>>(
     {
       key: GRADIENT_SETTINGS_STORAGE_KEY,
       instance: storage,
@@ -18,14 +18,23 @@ export const useGradientSettings = () => {
     DEFAULT_GRADIENT_SETTINGS
   );
 
+  // Merge stored settings with defaults to handle version mismatches
+  // This ensures new settings have default values for existing users
+  const mergedSettings = useMemo<GradientSettings>(() => {
+    return {
+      ...DEFAULT_GRADIENT_SETTINGS,
+      ...storedSettings,
+    };
+  }, [storedSettings]);
+
   // Local state for immediate UI updates
-  const [localSettings, setLocalSettings] = useState<GradientSettings>(storedSettings);
+  const [localSettings, setLocalSettings] = useState<GradientSettings>(mergedSettings);
   const debounceRef = useRef<NodeJS.Timeout>();
 
   // Sync local state when stored settings change (on mount or external changes)
   useEffect(() => {
-    setLocalSettings(storedSettings);
-  }, [storedSettings]);
+    setLocalSettings(mergedSettings);
+  }, [mergedSettings]);
 
   // Update local state immediately, debounce storage write
   const updateGradientSetting = useCallback(
@@ -101,51 +110,40 @@ export const useGradientSettings = () => {
           const data = JSON.parse(text);
 
           if (data.settings && typeof data.settings === "object") {
-            // Validate that all required keys exist
-            const requiredKeys: (keyof GradientSettings)[] = [
-              "distortion",
-              "swirl",
-              "offsetX",
-              "offsetY",
-              "scale",
-              "rotation",
-              "speed",
-              "opacity",
+            // Merge imported settings with defaults to handle missing keys from older exports
+            const mergedImport: GradientSettings = {
+              ...DEFAULT_GRADIENT_SETTINGS,
+              ...data.settings,
+            };
+
+            // Validate types for the imported settings
+            const booleanKeys: (keyof GradientSettings)[] = [
               "audioResponsive",
-              "audioSpeedMultiplier",
-              "audioScaleBoost",
               "showLogs",
               "boostDullColors",
               "showOnBrowsePages",
               "rememberAlbumSettings",
-              "vibrantSaturationThreshold",
-              "vibrantRatioThreshold",
-              "boostIntensity",
+              "enabled",
             ];
 
-            const isValid = requiredKeys.every(key => {
-              if (
-                key === "audioResponsive" ||
-                key === "showLogs" ||
-                key === "boostDullColors" ||
-                key === "showOnBrowsePages" ||
-                key === "rememberAlbumSettings"
-              ) {
-                return typeof data.settings[key] === "boolean";
+            const isValid = Object.entries(mergedImport).every(([key, value]) => {
+              if (booleanKeys.includes(key as keyof GradientSettings)) {
+                return typeof value === "boolean";
               }
-              return typeof data.settings[key] === "number";
+              return typeof value === "number";
             });
 
             if (isValid) {
+              const settingsToSave = mergedImport;
               // Clear any pending debounced updates
               if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
               }
 
               // Update both local and stored settings immediately
-              setLocalSettings(data.settings);
-              await setStoredSettings(data.settings);
-              resolve(data.settings);
+              setLocalSettings(settingsToSave);
+              await setStoredSettings(settingsToSave);
+              resolve(settingsToSave);
             } else {
               alert("Invalid settings file format");
               resolve(null);

@@ -1,4 +1,5 @@
 export interface GradientSettings {
+  enabled: boolean;
   distortion: number;
   swirl: number;
   offsetX: number;
@@ -26,6 +27,7 @@ export interface DynamicMultipliers {
 }
 
 export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
+  enabled: true,
   distortion: 0.95,
   swirl: 0.95,
   offsetX: 0,
