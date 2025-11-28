@@ -3,7 +3,7 @@
 A Chrome extension built with Plasmo and React that adds beautiful, customizable grain gradient effects to YouTube Music lyrics using the Paper Shaders library.
 
 > [!WARNING]
-> You need to install [Better Lyrics](https://github.com/boidushya/better-lyrics) for the extension to work properly. It is currently in development and might produce unwanted effects.
+> Although optional, it is **highly recommended** to use this extension alongside [Better Lyrics](https://github.com/boidushya/better-lyrics).
 
 ## ✨ Features
 
