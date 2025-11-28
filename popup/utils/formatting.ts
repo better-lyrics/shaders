@@ -7,5 +7,8 @@ export const formatValue = (key: string, value: number): string => {
   if (key === "vibrantSaturationThreshold") return value.toFixed(0) + "%";
   if (key === "vibrantRatioThreshold") return value.toFixed(0) + "%";
   if (key === "boostIntensity") return value.toFixed(0) + "%";
+  if (key === "kawarpBlurPasses") return value.toFixed(0);
+  if (key === "kawarpTransitionDuration") return value.toFixed(0) + "ms";
+  if (key === "kawarpDithering") return value.toFixed(3);
   return value.toFixed(2);
 };

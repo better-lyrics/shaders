@@ -1,5 +1,5 @@
 import React from "react";
-import { GradientSettings, defaultSettings } from "../../types";
+import { GradientSettings, ShaderType, defaultSettings } from "../../types";
 import { ControlSlider } from "../ControlSlider";
 import { ControlToggle } from "../ControlToggle";
 
@@ -7,6 +7,7 @@ interface ControlsTabProps {
   settings: GradientSettings;
   onSettingChange: (key: keyof GradientSettings, value: number) => void;
   onToggleChange: (key: keyof GradientSettings, value: boolean) => void;
+  onShaderTypeChange: (type: ShaderType) => void;
   onResetAll: () => void;
   onExport: () => void;
   onImport: () => void;
@@ -16,10 +17,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
   settings,
   onSettingChange,
   onToggleChange,
+  onShaderTypeChange,
   onResetAll,
   onExport,
   onImport,
 }) => {
+  const isMeshGradient = settings.shaderType === "mesh";
+  const isKawarp = settings.shaderType === "kawarp";
   const handleReset = (key: keyof GradientSettings) => {
     if (
       key === "enabled" ||
@@ -41,6 +45,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     distortion: "Amount of warping and deformation applied to the gradient. Creates fluid, organic shapes.",
     swirl: "Adds rotational twisting to the gradient pattern. Higher values create more spiral effects.",
     opacity: "Transparency level of the gradient overlay. Lower values make it more see-through.",
+    kawarpWarpIntensity: "Intensity of the fluid warping effect. Higher values create more dramatic distortion.",
+    kawarpBlurPasses:
+      "Number of blur passes applied to the image. Higher values create a smoother, more diffused look.",
+    kawarpAnimationSpeed: "Speed of the fluid animation. Higher values create faster, more dynamic motion.",
+    kawarpTransitionDuration: "Duration of the crossfade transition when changing album art (in milliseconds).",
+    kawarpSaturation: "Color saturation multiplier. Values above 1 boost colors, below 1 mute them.",
+    kawarpDithering: "Amount of dithering to reduce color banding. Higher values add more noise.",
     audioSpeedMultiplier:
       "How much to multiply animation speed when a beat is detected. Applied momentarily on each beat.",
     audioScaleBoost: "Percentage to boost scale when a beat is detected. Creates a pulsing zoom effect on beats.",
@@ -65,18 +76,29 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             hint="Master toggle - Enables or disables the gradient shader effect entirely. Turn off to restore original YouTube Music appearance."
           />
 
+          <div className="shader-type-selector">
+            <span className="shader-type-label">Shader Type</span>
+            <div className="shader-type-buttons">
+              <button
+                className={`shader-type-button ${isMeshGradient ? "active" : ""}`}
+                onClick={() => onShaderTypeChange("mesh")}
+              >
+                Mesh Gradient
+              </button>
+              <button
+                className={`shader-type-button ${isKawarp ? "active" : ""}`}
+                onClick={() => onShaderTypeChange("kawarp")}
+              >
+                Kawarp
+              </button>
+            </div>
+          </div>
+
           <ControlToggle
             label="Audio Responsive"
             value={settings.audioResponsive}
             onChange={value => onToggleChange("audioResponsive", value)}
             hint="Analyzes audio waveform in real-time to detect beats and pulse the gradient animation speed and scale."
-          />
-
-          <ControlToggle
-            value={settings.boostDullColors}
-            onChange={value => onToggleChange("boostDullColors", value)}
-            label="Boost Dull Colors"
-            hint="Enhances muted colors when the majority of the palette is vibrant (≥50% with sat ≥30%). Preserves monochromatic aesthetics."
           />
 
           <ControlToggle
@@ -90,47 +112,149 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             label="Show on Browse Pages"
             value={settings.showOnBrowsePages}
             onChange={value => onToggleChange("showOnBrowsePages", value)}
-            hint="Displays the gradient shader on browse pages (homepage and search) using the current player colors. Warning: May cause degraded performance on lower-end devices."
+            hint="Displays the shader on browse pages (homepage and search). Warning: May cause degraded performance on lower-end devices."
           />
 
           <ControlToggle
             label="Remember Album Settings"
             value={settings.rememberAlbumSettings}
             onChange={value => onToggleChange("rememberAlbumSettings", value)}
-            hint="Automatically saves and restores gradient settings for each album. When you change settings while listening to an album, those settings will be remembered and applied next time you play that album."
+            hint="Automatically saves and restores settings for each album."
           />
 
-          {Object.entries(settings)
-            .filter(
-              ([key]) =>
-                ![
-                  "enabled",
-                  "audioResponsive",
-                  "audioSpeedMultiplier",
-                  "audioScaleBoost",
-                  "audioBeatThreshold",
-                  "showLogs",
-                  "boostDullColors",
-                  "showOnBrowsePages",
-                  "showOnHomepage",
-                  "rememberAlbumSettings",
-                  "vibrantSaturationThreshold",
-                  "vibrantRatioThreshold",
-                  "boostIntensity",
-                ].includes(key)
-            )
-            .map(([key, value]) => (
+          {isMeshGradient && (
+            <ControlToggle
+              value={settings.boostDullColors}
+              onChange={value => onToggleChange("boostDullColors", value)}
+              label="Boost Dull Colors"
+              hint="Enhances muted colors extracted from album art."
+            />
+          )}
+
+          <ControlSlider
+            key="opacity"
+            keyName="opacity"
+            value={settings.opacity}
+            onChange={onSettingChange}
+            onReset={handleReset}
+            hint={sliderHints.opacity}
+          />
+
+          {isMeshGradient && (
+            <>
               <ControlSlider
-                key={key}
-                keyName={key}
-                value={value as number}
+                key="speed"
+                keyName="speed"
+                value={settings.speed}
                 onChange={onSettingChange}
                 onReset={handleReset}
-                hint={sliderHints[key as keyof GradientSettings]}
+                hint={sliderHints.speed}
               />
-            ))}
+              <ControlSlider
+                key="scale"
+                keyName="scale"
+                value={settings.scale}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.scale}
+              />
+              <ControlSlider
+                key="distortion"
+                keyName="distortion"
+                value={settings.distortion}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.distortion}
+              />
+              <ControlSlider
+                key="swirl"
+                keyName="swirl"
+                value={settings.swirl}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.swirl}
+              />
+              <ControlSlider
+                key="rotation"
+                keyName="rotation"
+                value={settings.rotation}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint="Rotation angle of the gradient pattern in degrees."
+              />
+              <ControlSlider
+                key="offsetX"
+                keyName="offsetX"
+                value={settings.offsetX}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint="Horizontal offset of the gradient pattern."
+              />
+              <ControlSlider
+                key="offsetY"
+                keyName="offsetY"
+                value={settings.offsetY}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint="Vertical offset of the gradient pattern."
+              />
+            </>
+          )}
 
-          {settings.boostDullColors && (
+          {isKawarp && (
+            <>
+              <ControlSlider
+                key="kawarpWarpIntensity"
+                keyName="kawarpWarpIntensity"
+                value={settings.kawarpWarpIntensity}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpWarpIntensity}
+              />
+              <ControlSlider
+                key="kawarpBlurPasses"
+                keyName="kawarpBlurPasses"
+                value={settings.kawarpBlurPasses}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpBlurPasses}
+              />
+              <ControlSlider
+                key="kawarpAnimationSpeed"
+                keyName="kawarpAnimationSpeed"
+                value={settings.kawarpAnimationSpeed}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpAnimationSpeed}
+              />
+              <ControlSlider
+                key="kawarpTransitionDuration"
+                keyName="kawarpTransitionDuration"
+                value={settings.kawarpTransitionDuration}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpTransitionDuration}
+              />
+              <ControlSlider
+                key="kawarpSaturation"
+                keyName="kawarpSaturation"
+                value={settings.kawarpSaturation}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpSaturation}
+              />
+              <ControlSlider
+                key="kawarpDithering"
+                keyName="kawarpDithering"
+                value={settings.kawarpDithering}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.kawarpDithering}
+              />
+            </>
+          )}
+
+          {isMeshGradient && settings.boostDullColors && (
             <>
               <ControlSlider
                 key="vibrantSaturationThreshold"
