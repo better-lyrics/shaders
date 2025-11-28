@@ -1,113 +1,108 @@
 # Better Lyrics Shaders
 
-A Chrome extension built with Plasmo and React that adds beautiful, customizable grain gradient effects to YouTube Music lyrics using the Paper Shaders library.
+A Chrome extension that adds customizable visual effects to YouTube Music, featuring mesh gradients (Paper Shaders) and warped album art (Kawarp). Built with Plasmo, React, and TypeScript.
 
 > [!WARNING]
 > Although optional, it is **highly recommended** to use this extension alongside [Better Lyrics](https://github.com/boidushya/better-lyrics).
 
-## ✨ Features
+## Features
 
-- 🎨 **Beautiful Grain Gradients**: Professional shader-based effects using Paper Shaders
-- ⚡ **React-powered**: Modern React components with TypeScript
-- 🔧 **Real-time Configuration**: Live preview while adjusting settings
-- 💾 **Persistent Settings**: Configuration saved automatically
-- 🎵 **Lyrics Integration**: Automatically detects YouTube Music lyrics and player page
-- 🚀 **Modern Architecture**: Built with Plasmo framework for optimal performance
+- **Two Effect Modes**: Choose between mesh gradients (Paper Shaders) or warped album art (Kawarp)
+- **Real-time Configuration**: Adjust settings and see changes instantly
+- **Persistent Settings**: Your configuration is saved automatically
+- **YouTube Music Integration**: Works on player pages, homepage, and search results
+- **Audio Reactive**: Optional beat detection that makes effects respond to music
 
-## 🛠️ Installation & Development
+## Installation
 
-### Setup
+### From Source
 
-1. **Clone/Create the project directory**
+1. Clone the repository
    ```bash
-   mkdir better-lyrics-shader
-   cd better-lyrics-shader
+   git clone https://github.com/boidushya/better-lyrics-shaders
+   cd better-lyrics-shaders
    ```
 
-2. **Install dependencies**
+2. Install dependencies
    ```bash
-   npm install
-   # or
-   yarn install
+   bun install
    ```
 
-3. **Build the extension**
+3. Build the extension
    ```bash
-   npm run build
-   # or
-   yarn build
+   bun run build
    ```
 
-4. **Load in Chrome**
-   - Open Chrome and go to `chrome://extensions/`
+4. Load in Chrome
+   - Open `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked"
    - Select the `build/chrome-mv3-prod` folder
-   - The extension will appear in your extensions list
 
-### Development Mode
+### Development
 
 For development with hot reload:
 
 ```bash
-npm run dev
-# or
-yarn dev
+bun run dev
 ```
 
 Then load the `build/chrome-mv3-dev` folder in Chrome.
 
-## 🎮 Usage
+## Usage
 
-1. **Navigate to YouTube Music** (https://music.youtube.com)
-2. **Go to any song's player page** (the extension activates on lyrics and player pages)
-3. **Click the Better Lyrics Shaders icon** in Chrome toolbar to open settings
+1. Go to [YouTube Music](https://music.youtube.com)
+2. Play any song
+3. Click the extension icon in Chrome toolbar to open settings
 
-## ⚙️ Configuration Options
+## Configuration
 
-### Colors
-- **5 Gradient Colors**: Full HSL color control
-- Tweak controls for gradient
-- Use color pickers or enter HSL values directly
-- Real-time preview of color changes
+### Effect Type
+- **Mesh Gradient**: Animated color gradients with distortion and swirl effects
+- **Kawarp**: Warped and blurred album art with smooth animations
 
-## 🚀 Building for Production
+### Mesh Gradient Settings
+- 5 gradient colors with full HSL control
+- Distortion, swirl, scale, and rotation controls
+- Speed and opacity adjustments
+
+### Kawarp Settings
+- Warp intensity and blur passes
+- Animation speed and saturation
+- Dithering control for smoother visuals
+
+### Audio Reactive
+- Beat detection syncs effects with the music
+- Configurable speed and scale multipliers
+
+## Building for Production
 
 ```bash
-# Build production version
-npm run build
-
-# Package for distribution
-npm run package
+bun run build    # Build production version
+bun run package  # Package for distribution
 ```
 
-The packaged extension will be in the `build` directory.
+## Troubleshooting
 
-## 🛠️ Troubleshooting
+### Extension not loading
+- Make sure dependencies are installed: `bun install`
+- Build the project: `bun run build`
+- Load the correct folder (`build/chrome-mv3-prod`)
 
-### Extension Not Loading
-- Ensure all dependencies are installed: `npm install`
-- Build the project: `npm run build`
-- Load the correct build folder (`build/chrome-mv3-prod`)
+### Gradient not showing
+- Navigate to a YouTube Music player page
+- Check that the extension is enabled
+- Try refreshing the page
 
-### Effect Not Showing
-- Navigate to a YouTube Music player page (not just the homepage)
-- Check that the effect is enabled in the popup
-- Try refreshing the page after changing settings
+### Development issues
+- Use `bun run dev` for hot reload
+- Check browser console for errors
+- Make sure you're loading `build/chrome-mv3-dev`
 
-### Development Issues
-- Use `npm run dev` for hot reload during development
-- Check the browser console for any error messages
-- Ensure you're loading the dev build folder (`build/chrome-mv3-dev`)
+## License
 
-## 📜 License
+MIT
 
-This project uses:
-- Paper Shaders library (with proper attribution)
-- Plasmo framework (MIT license)
-- React (MIT license)
+## Credits
 
-## 🙏 Attribution
-
-Built with [Paper Shaders](https://github.com/paper-design/shaders) by paper-design. 
-Powered by [Plasmo](https://www.plasmo.com/) framework.
+Built with [Paper Shaders](https://github.com/paper-design/shaders), [Kawarp](https://kawarp.boidu.dev), and the [Plasmo](https://www.plasmo.com/) framework.
