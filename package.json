@@ -1,7 +1,7 @@
 {
   "name": "better-lyrics-shaders",
   "displayName": "Better Lyrics Shaders",
-  "version": "0.1.8",
+  "version": "1.0.0",
   "description": "Add beautiful gradient effects to YouTube Music",
   "author": "Boidu",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
+    "@kawarp/core": "1.1.0",
     "@paper-design/shaders": "0.0.65",
     "@plasmohq/storage": "^1.9.0",
     "colorthief": "^2.6.0",

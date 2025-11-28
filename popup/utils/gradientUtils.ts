@@ -15,6 +15,12 @@ export const getControlLabel = (key: string): string => {
     vibrantSaturationThreshold: "Vibrant Saturation Threshold",
     vibrantRatioThreshold: "Vibrant Ratio Threshold",
     boostIntensity: "Boost Intensity",
+    kawarpWarpIntensity: "Warp Intensity",
+    kawarpBlurPasses: "Blur Passes",
+    kawarpAnimationSpeed: "Animation Speed",
+    kawarpTransitionDuration: "Transition Duration",
+    kawarpSaturation: "Saturation",
+    kawarpDithering: "Dithering",
   };
 
   return labels[key] || capitalizeFirst(key);

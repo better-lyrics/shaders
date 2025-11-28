@@ -9,14 +9,14 @@ interface TabBarProps {
 export const TabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
   return (
     <div className="tabs">
-      <button className={`tab ${activeTab === "colors" ? "tab--active" : ""}`} onClick={() => onTabChange("colors")}>
-        Colors
-      </button>
       <button
         className={`tab ${activeTab === "controls" ? "tab--active" : ""}`}
         onClick={() => onTabChange("controls")}
       >
         Controls
+      </button>
+      <button className={`tab ${activeTab === "colors" ? "tab--active" : ""}`} onClick={() => onTabChange("colors")}>
+        Colors
       </button>
     </div>
   );

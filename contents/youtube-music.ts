@@ -3,10 +3,12 @@ import {
   DEFAULT_DYNAMIC_MULTIPLIERS,
   type DynamicMultipliers,
   type GradientSettings,
+  type ShaderType,
 } from "../shared/constants/gradientSettings";
 import { logger } from "../shared/utils/logger";
 import * as audioAnalysis from "./lib/audioAnalysis";
 import * as colorExtraction from "./lib/colorExtraction";
+import * as kawarpManager from "./lib/kawarpManager";
 import * as messageHandler from "./lib/messageHandler";
 import * as shaderManager from "./lib/shaderManager";
 import * as storage from "./lib/storage";
@@ -58,7 +60,11 @@ const debouncedSaveAlbumColors = (
 
 const handleBeatDetected = (multipliers: DynamicMultipliers): void => {
   dynamicMultipliers = multipliers;
-  shaderManager.updateShaderSettings(gradientSettings, dynamicMultipliers);
+  if (gradientSettings.shaderType === "kawarp") {
+    kawarpManager.updateKawarpSpeed(gradientSettings, dynamicMultipliers);
+  } else {
+    shaderManager.updateShaderSettings(gradientSettings, dynamicMultipliers);
+  }
 };
 
 const handleAudioResponsiveToggle = (): void => {
@@ -66,7 +72,11 @@ const handleAudioResponsiveToggle = (): void => {
     audioAnalysis.startAudioAnalysis(gradientSettings, handleBeatDetected);
   } else {
     dynamicMultipliers = { speedMultiplier: 1, scaleMultiplier: 1 };
-    shaderManager.updateShaderSettings(gradientSettings, dynamicMultipliers);
+    if (gradientSettings.shaderType === "kawarp") {
+      kawarpManager.updateKawarpSpeed(gradientSettings, dynamicMultipliers);
+    } else {
+      shaderManager.updateShaderSettings(gradientSettings, dynamicMultipliers);
+    }
   }
 };
 
@@ -105,14 +115,18 @@ const updateGradientColors = async (
 ): Promise<void> => {
   logger.log("updateGradientColors called with", colors.length, "colors for", pageType);
 
+  const location = getLocationFromPageType(pageType);
+
   if (colors.length === 0) {
-    const location = getLocationFromPageType(pageType);
     shaderManager.destroyShader(location);
     return;
   }
 
+  if (gradientSettings.shaderType === "kawarp") {
+    return;
+  }
+
   const targetSelector = getTargetSelectorFromPageType(pageType);
-  const location = getLocationFromPageType(pageType);
 
   if (shaderManager.hasShader(location)) {
     logger.log(`Updating existing ${location} shader colors`);
@@ -131,6 +145,7 @@ const updateGradientColors = async (
 
 const updateGradientSettings = async (settings: GradientSettings): Promise<void> => {
   const wasEnabled = gradientSettings.enabled;
+  const wasShaderType = gradientSettings.shaderType;
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
   const audioSettingsChanged =
@@ -142,20 +157,21 @@ const updateGradientSettings = async (settings: GradientSettings): Promise<void>
     gradientSettings.vibrantSaturationThreshold !== settings.vibrantSaturationThreshold ||
     gradientSettings.vibrantRatioThreshold !== settings.vibrantRatioThreshold ||
     gradientSettings.boostIntensity !== settings.boostIntensity;
+  const shaderTypeChanged = wasShaderType !== settings.shaderType;
 
   gradientSettings = settings;
 
   logger.setEnabled(settings.showLogs);
 
-  // Handle enabled toggle
   if (wasEnabled !== settings.enabled) {
     if (!settings.enabled) {
       logger.log("Shaders disabled - destroying all shaders");
       shaderManager.destroyShader();
+      kawarpManager.destroyKawarp();
       audioAnalysis.stopAudioAnalysis();
     } else {
       logger.log("Shaders enabled - reinitializing");
-      await extractAndUpdateColors(true, false);
+      await checkAndUpdateGradient();
       if (settings.audioResponsive) {
         audioAnalysis.startAudioAnalysis(settings, handleBeatDetected);
       }
@@ -163,8 +179,18 @@ const updateGradientSettings = async (settings: GradientSettings): Promise<void>
     return;
   }
 
-  // Skip all updates if shaders are disabled
   if (!settings.enabled) {
+    return;
+  }
+
+  if (shaderTypeChanged) {
+    logger.log(`Shader type changed from ${wasShaderType} to ${settings.shaderType}`);
+    if (wasShaderType === "mesh") {
+      shaderManager.destroyShader();
+    } else {
+      kawarpManager.destroyKawarp();
+    }
+    await checkAndUpdateGradient();
     return;
   }
 
@@ -176,13 +202,15 @@ const updateGradientSettings = async (settings: GradientSettings): Promise<void>
     await checkAndUpdateGradient();
   }
 
-  if (boostSettingsChanged) {
+  if (boostSettingsChanged && settings.shaderType === "mesh") {
     logger.log("Boost settings changed - re-extracting colors");
     colorExtraction.clearColorCache();
     await extractAndUpdateColors(true, true);
   }
 
-  if (shaderManager.hasShader()) {
+  if (settings.shaderType === "kawarp" && kawarpManager.hasKawarp()) {
+    kawarpManager.updateKawarpSettings(settings, dynamicMultipliers);
+  } else if (settings.shaderType === "mesh" && shaderManager.hasShader()) {
     shaderManager.updateShaderSettings(settings, dynamicMultipliers);
   }
 };
@@ -267,80 +295,118 @@ const extractAndUpdateColors = async (
 
 const destroyBrowsePageShaders = (): void => {
   if (shaderManager.hasShader("homepage")) {
-    logger.log("Removing homepage shader");
+    logger.log("Removing homepage mesh shader");
     shaderManager.destroyShader("homepage");
   }
   if (shaderManager.hasShader("search")) {
-    logger.log("Removing search shader");
+    logger.log("Removing search mesh shader");
     shaderManager.destroyShader("search");
+  }
+  if (kawarpManager.hasKawarp("homepage")) {
+    logger.log("Removing homepage kawarp");
+    kawarpManager.destroyKawarp("homepage");
+  }
+  if (kawarpManager.hasKawarp("search")) {
+    logger.log("Removing search kawarp");
+    kawarpManager.destroyKawarp("search");
   }
 };
 
 const checkAndUpdateGradient = async (): Promise<void> => {
-  // Skip all gradient updates if shaders are disabled
   if (!gradientSettings.enabled) {
     logger.log("Shaders disabled - skipping gradient update");
     return;
   }
 
   const pageType = getCurrentPageType();
-  const hasPlayerShader = shaderManager.hasShader("player");
-  const hasHomepageShader = shaderManager.hasShader("homepage");
-  const hasSearchShader = shaderManager.hasShader("search");
+  const isKawarp = gradientSettings.shaderType === "kawarp";
+  const hasPlayerEffect = isKawarp ? kawarpManager.hasKawarp("player") : shaderManager.hasShader("player");
+  const hasHomepageEffect = isKawarp ? kawarpManager.hasKawarp("homepage") : shaderManager.hasShader("homepage");
+  const hasSearchEffect = isKawarp ? kawarpManager.hasKawarp("search") : shaderManager.hasShader("search");
 
   logger.log("checkAndUpdateGradient", {
     pageType,
-    hasPlayerShader,
-    hasHomepageShader,
-    hasSearchShader,
+    shaderType: gradientSettings.shaderType,
+    hasPlayerEffect,
+    hasHomepageEffect,
+    hasSearchEffect,
     showOnBrowsePages: gradientSettings.showOnBrowsePages,
   });
 
   if (pageType === "player") {
-    logger.log("On player page - extracting colors");
-    await extractAndUpdateColors();
+    if (isKawarp) {
+      logger.log("On player page - creating/updating kawarp");
+      if (!hasPlayerEffect) {
+        await kawarpManager.createKawarp(gradientSettings, dynamicMultipliers, "player-page");
+      } else {
+        await kawarpManager.updateKawarpImage("player");
+      }
+    } else {
+      logger.log("On player page - extracting colors for mesh gradient");
+      await extractAndUpdateColors();
+    }
 
     if (gradientSettings.showOnBrowsePages) {
-      const currentColors = shaderManager.getCurrentColors();
-      if (currentColors.length > 0 && !hasHomepageShader) {
-        logger.log("Creating homepage shader from player colors");
-        await updateGradientColors(currentColors, "homepage");
-      }
-      if (currentColors.length > 0 && !hasSearchShader) {
-        logger.log("Creating search shader from player colors");
-        await updateGradientColors(currentColors, "search");
+      if (isKawarp) {
+        if (!hasHomepageEffect) {
+          logger.log("Creating homepage kawarp");
+          await kawarpManager.createKawarp(gradientSettings, dynamicMultipliers, "homepage");
+        }
+        if (!hasSearchEffect) {
+          logger.log("Creating search kawarp");
+          await kawarpManager.createKawarp(gradientSettings, dynamicMultipliers, "search-page");
+        }
+      } else {
+        const currentColors = shaderManager.getCurrentColors();
+        if (currentColors.length > 0 && !hasHomepageEffect) {
+          logger.log("Creating homepage shader from player colors");
+          await updateGradientColors(currentColors, "homepage");
+        }
+        if (currentColors.length > 0 && !hasSearchEffect) {
+          logger.log("Creating search shader from player colors");
+          await updateGradientColors(currentColors, "search");
+        }
       }
     } else {
       destroyBrowsePageShaders();
     }
   } else if (pageType === "homepage" || pageType === "search") {
     if (gradientSettings.showOnBrowsePages) {
-      const currentColors = shaderManager.getCurrentColors();
-      const hasTargetShader = pageType === "homepage" ? hasHomepageShader : hasSearchShader;
+      const targetSelector = pageType === "homepage" ? "homepage" : "search-page";
+      const hasTargetEffect = pageType === "homepage" ? hasHomepageEffect : hasSearchEffect;
 
-      logger.log(`On ${pageType} - showOnBrowsePages enabled`, {
-        hasTargetShader,
-        availableColors: currentColors,
-        colorCount: currentColors.length,
-      });
+      logger.log(`On ${pageType} - showOnBrowsePages enabled`, { hasTargetEffect });
 
-      if (!hasTargetShader && currentColors.length > 0) {
-        logger.log(`Creating ${pageType} shader with colors:`, currentColors);
-        await updateGradientColors(currentColors, pageType);
-      } else if (!hasTargetShader) {
-        logger.log(`No colors available yet for ${pageType} shader`);
+      if (!hasTargetEffect) {
+        if (isKawarp) {
+          logger.log(`Creating ${pageType} kawarp`);
+          await kawarpManager.createKawarp(gradientSettings, dynamicMultipliers, targetSelector);
+        } else {
+          const currentColors = shaderManager.getCurrentColors();
+          if (currentColors.length > 0) {
+            logger.log(`Creating ${pageType} shader with colors:`, currentColors);
+            await updateGradientColors(currentColors, pageType);
+          } else {
+            logger.log(`No colors available yet for ${pageType} shader`);
+          }
+        }
       }
     } else {
       destroyBrowsePageShaders();
     }
 
-    if (hasPlayerShader) {
-      logger.log("Not on player page - removing player shader");
-      shaderManager.destroyShader("player");
+    if (hasPlayerEffect) {
+      logger.log("Not on player page - removing player effect");
+      if (isKawarp) {
+        kawarpManager.destroyKawarp("player");
+      } else {
+        shaderManager.destroyShader("player");
+      }
     }
   } else {
-    logger.log("On other page - removing all shaders");
+    logger.log("On other page - removing all effects");
     shaderManager.destroyShader();
+    kawarpManager.destroyKawarp();
   }
 };
 
@@ -351,7 +417,9 @@ const initializeApp = async (): Promise<void> => {
   logger.log("Better Lyrics Shaders: Initializing...");
   logger.log("Loaded settings:", gradientSettings);
   logger.log("Shaders enabled:", gradientSettings.enabled);
+  logger.log("Shader type:", gradientSettings.shaderType);
   shaderManager.cleanupOrphanedGradients();
+  kawarpManager.cleanupOrphanedKawarps();
 
   messageHandler.setupMessageListener({
     onColorsUpdate: updateGradientColors,
@@ -370,18 +438,21 @@ const initializeApp = async (): Promise<void> => {
   setTimeout(async () => {
     await checkAndUpdateGradient();
 
-    // Iterative retry loop instead of recursive (reduces stack pressure)
     for (let retries = 10; retries > 0; retries--) {
-      const colors = shaderManager.getCurrentColors();
-      if (colors.length > 0) {
-        logger.log("Colors found, stopping retry");
+      const hasEffect =
+        gradientSettings.shaderType === "kawarp"
+          ? kawarpManager.hasKawarp("player")
+          : shaderManager.getCurrentColors().length > 0;
+
+      if (hasEffect) {
+        logger.log("Effect initialized, stopping retry");
         break;
       }
-      logger.log(`No colors yet, retrying extraction... (${retries} retries left)`);
+      logger.log(`Effect not ready yet, retrying... (${retries} retries left)`);
       await new Promise(resolve => setTimeout(resolve, 500));
       await checkAndUpdateGradient();
       if (retries === 1) {
-        logger.log("Max retries reached, giving up on color extraction");
+        logger.log("Max retries reached");
       }
     }
 
@@ -510,6 +581,7 @@ const cleanup = () => {
   audioAnalysis.stopAudioAnalysis();
   shaderManager.destroyShader();
   shaderManager.clearColorVectorCache();
+  kawarpManager.destroyKawarp();
   colorExtraction.clearColorCache();
 };
 

@@ -253,6 +253,10 @@ body {
   opacity: 0.6;
 }
 
+.empty-icon--full-opacity {
+  opacity: 1;
+}
+
 .empty-state h3 {
   margin: 0 0 8px 0;
   font-size: 16px;
@@ -265,6 +269,22 @@ body {
   font-size: 13px;
   line-height: 1.4;
   opacity: 0.8;
+}
+
+.kawarp-credit {
+  margin-top: 12px !important;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.kawarp-credit a {
+  color: rgb(242, 12, 50);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.kawarp-credit a:hover {
+  text-decoration: underline;
 }
 
 .gradient-controls-section {
@@ -515,4 +535,48 @@ body {
   to {
     opacity: 1;
   }
+}
+
+.shader-type-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shader-type-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+.shader-type-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.shader-type-button {
+  flex: 1;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shader-type-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.shader-type-button.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
 }
