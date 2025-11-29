@@ -45,13 +45,20 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
     distortion: "Amount of warping and deformation applied to the gradient. Creates fluid, organic shapes.",
     swirl: "Adds rotational twisting to the gradient pattern. Higher values create more spiral effects.",
     opacity: "Transparency level of the gradient overlay. Lower values make it more see-through.",
-    kawarpWarpIntensity: "Intensity of the fluid warping effect. Higher values create more dramatic distortion.",
+    kawarpOpacity:
+      "Controls the visibility of the Kawarp effect layer. At 0, the effect is invisible; at 1, it's fully opaque. Adjust to blend the animated background with the original UI.",
+    kawarpWarpIntensity:
+      "Controls how much the album art image gets stretched and distorted by the fluid simulation. At 0, the image stays static; higher values create more liquid, flowing distortions that make the background feel alive.",
     kawarpBlurPasses:
-      "Number of blur passes applied to the image. Higher values create a smoother, more diffused look.",
-    kawarpAnimationSpeed: "Speed of the fluid animation. Higher values create faster, more dynamic motion.",
-    kawarpTransitionDuration: "Duration of the crossfade transition when changing album art (in milliseconds).",
-    kawarpSaturation: "Color saturation multiplier. Values above 1 boost colors, below 1 mute them.",
-    kawarpDithering: "Amount of dithering to reduce color banding. Higher values add more noise.",
+      "Determines how soft and dreamy the background appears. More passes create a smoother, more abstract look where colors blend together. Fewer passes keep more detail from the original album art visible.",
+    kawarpAnimationSpeed:
+      "How fast the fluid warping effect animates. Lower values create slow, hypnotic movements; higher values make the background more energetic and reactive. Works with audio responsive for beat-synced animation.",
+    kawarpTransitionDuration:
+      "How long (in milliseconds) the crossfade takes when switching between album art. Shorter durations feel snappier, longer durations create smoother, more cinematic transitions between songs.",
+    kawarpSaturation:
+      "Boosts or reduces color intensity of the album art. Values above 1.0 make colors more vivid and punchy; values below 1.0 create a more muted, desaturated aesthetic. 1.0 keeps original colors.",
+    kawarpDithering:
+      "Adds subtle noise to prevent color banding (visible stepping between colors). Higher values add more grain texture. Useful for smooth gradients on displays with limited color depth.",
     audioSpeedMultiplier:
       "How much to multiply animation speed when a beat is detected. Applied momentarily on each beat.",
     audioScaleBoost: "Percentage to boost scale when a beat is detected. Creates a pulsing zoom effect on beats.",
@@ -211,7 +218,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
                 value={settings.kawarpOpacity}
                 onChange={onSettingChange}
                 onReset={handleReset}
-                hint={sliderHints.opacity}
+                hint={sliderHints.kawarpOpacity}
               />
               <ControlSlider
                 key="kawarpWarpIntensity"
