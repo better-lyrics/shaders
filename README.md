@@ -1,3 +1,5 @@
+<img width="1280" height="800" alt="Bachelor (Gunna, Turbo) with Better Lyrics Shaders" src="https://github.com/user-attachments/assets/b9894036-18e9-4afe-9cb0-4e11a44a2a55" />
+
 # Better Lyrics Shaders
 
 A Chrome extension that adds customizable visual effects to YouTube Music, featuring mesh gradients (Paper Shaders) and warped album art (Kawarp). Built with Plasmo, React, and TypeScript.
