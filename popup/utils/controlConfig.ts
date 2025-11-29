@@ -39,7 +39,7 @@ export const getControlConfig = (key: string): ControlConfig => {
     step = 0.1;
   } else if (key === "audioScaleBoost") {
     min = 0;
-    max = 5;
+    max = 10;
     step = 0.1;
   } else if (key === "vibrantSaturationThreshold") {
     min = 0;

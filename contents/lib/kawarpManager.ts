@@ -15,6 +15,9 @@ interface KawarpState {
   isTransitioning: boolean;
   pendingImageUrl: string | null;
   transitionTimeoutId: number | null;
+  currentScale: number;
+  targetScale: number;
+  scaleAnimationId: number | null;
 }
 
 const createEmptyState = (): KawarpState => ({
@@ -30,7 +33,36 @@ const createEmptyState = (): KawarpState => ({
   isTransitioning: false,
   pendingImageUrl: null,
   transitionTimeoutId: null,
+  currentScale: 1,
+  targetScale: 1,
+  scaleAnimationId: null,
 });
+
+const SCALE_LERP_UP = 0.5;
+const SCALE_LERP_DOWN = 0.12;
+const SCALE_THRESHOLD = 0.001;
+
+const animateScale = (state: KawarpState): void => {
+  if (!state.instance) {
+    state.scaleAnimationId = null;
+    return;
+  }
+
+  const diff = state.targetScale - state.currentScale;
+
+  if (Math.abs(diff) < SCALE_THRESHOLD) {
+    state.currentScale = state.targetScale;
+    state.instance.setOptions({ scale: state.currentScale });
+    state.scaleAnimationId = null;
+    return;
+  }
+
+  const lerpFactor = diff > 0 ? SCALE_LERP_UP : SCALE_LERP_DOWN;
+  state.currentScale += diff * lerpFactor;
+  state.instance.setOptions({ scale: state.currentScale });
+
+  state.scaleAnimationId = requestAnimationFrame(() => animateScale(state));
+};
 
 const kawarps = new Map<string, KawarpState>();
 let lastKnownImageUrl: string | null = null;
@@ -208,7 +240,7 @@ export const createKawarp = async (
       z-index: 0;
       opacity: 0;
       will-change: opacity, transform;
-      transition: opacity 0.5s ease-out, transform 0.15s ease-out;
+      transition: opacity 0.5s ease-out;
     `
     : `
       --sidebar: 240px;
@@ -221,7 +253,7 @@ export const createKawarp = async (
       z-index: -1;
       opacity: 0;
       will-change: opacity, transform;
-      transition: opacity 0.5s ease-out, transform 0.15s ease-out;
+      transition: opacity 0.5s ease-out;
     `;
 
   state.canvas = document.createElement("canvas");
@@ -244,6 +276,7 @@ export const createKawarp = async (
     transitionDuration: settings.kawarpTransitionDuration,
     saturation: settings.kawarpSaturation,
     dithering: settings.kawarpDithering,
+    scale: 1,
   });
 
   state.lastSettings = { ...settings };
@@ -307,6 +340,10 @@ export const destroyKawarp = (location?: string): void => {
       clearTimeout(state.transitionTimeoutId);
       state.transitionTimeoutId = null;
     }
+    if (state.scaleAnimationId !== null) {
+      cancelAnimationFrame(state.scaleAnimationId);
+      state.scaleAnimationId = null;
+    }
     if (state.observer) {
       state.observer.disconnect();
       state.observer = null;
@@ -331,6 +368,8 @@ export const destroyKawarp = (location?: string): void => {
     state.isVisible = true;
     state.isTransitioning = false;
     state.pendingImageUrl = null;
+    state.currentScale = 1;
+    state.targetScale = 1;
 
     kawarps.delete(location);
   } else {
@@ -418,7 +457,10 @@ export const updateKawarpSpeed = (
     }
 
     if (scaleChanged) {
-      state.container.style.transform = `scale(${multipliers.scaleMultiplier})`;
+      state.targetScale = multipliers.scaleMultiplier;
+      if (state.scaleAnimationId === null) {
+        state.scaleAnimationId = requestAnimationFrame(() => animateScale(state));
+      }
     }
 
     state.lastMultipliers = { ...multipliers };

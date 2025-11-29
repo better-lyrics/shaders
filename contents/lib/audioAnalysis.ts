@@ -107,8 +107,10 @@ const analyzeAudioFrame = (
 
     const isBeat = peak > threshold;
 
+    const scaleBoost = settings.audioScaleBoost;
+
     reusableMultipliers.speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
-    reusableMultipliers.scaleMultiplier = settings.audioResponsive && isBeat ? 1 + settings.audioScaleBoost / 100 : 1;
+    reusableMultipliers.scaleMultiplier = settings.audioResponsive && isBeat ? 1 + scaleBoost / 100 : 1;
 
     onBeatDetected(reusableMultipliers);
 

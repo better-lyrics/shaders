@@ -63,7 +63,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   // Audio responsive
   audioResponsive: true,
   audioSpeedMultiplier: 4,
-  audioScaleBoost: 1,
+  audioScaleBoost: 2,
   audioBeatThreshold: 0.105,
   // Other settings
   showLogs: false,
