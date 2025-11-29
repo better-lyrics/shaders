@@ -7,7 +7,7 @@ interface AudioAnalysisState {
   element: HTMLAudioElement | null;
   rafId: number | null;
   isInitialized: boolean;
-  dataArray: Uint8Array | null;
+  dataArray: Uint8Array<ArrayBuffer> | null;
   lastAnalysisTime: number;
   initTimeoutId: number | null;
   resumeContextHandler: (() => Promise<void>) | null;
@@ -90,7 +90,7 @@ const analyzeAudioFrame = (
   }
 
   if (timestamp - state.lastAnalysisTime >= ANALYSIS_INTERVAL) {
-    state.analyser.getByteTimeDomainData(state.dataArray as Uint8Array<ArrayBuffer>);
+    state.analyser.getByteTimeDomainData(state.dataArray);
 
     let peak = 0;
     const length = state.dataArray.length;
