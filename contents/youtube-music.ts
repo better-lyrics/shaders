@@ -34,6 +34,7 @@ let currentAlbumArtUrl = "";
 let albumSaveDebounceTimer: NodeJS.Timeout | null = null;
 
 let navigationHandler: (() => void) | null = null;
+let videoPlayHandler: (() => void) | null = null;
 let songImageObserver: MutationObserver | null = null;
 let playerPageObserver: MutationObserver | null = null;
 let waitForSongImageTimeoutId: number | null = null;
@@ -542,6 +543,11 @@ const initializeApp = async (): Promise<void> => {
       if (currentVideoId && currentVideoId !== lastVideoId) {
         logger.log("Video ID changed:", lastVideoId, "->", currentVideoId);
         lastVideoId = currentVideoId;
+
+        // Reset image tracking to force re-extraction for new video
+        lastImageSrc = "";
+        currentAlbumArtUrl = "";
+
         debouncedUpdate();
 
         if (navigationRetryTimeoutId) {
@@ -558,6 +564,53 @@ const initializeApp = async (): Promise<void> => {
     document.addEventListener("yt-navigate-finish", navigationHandler);
     // Also listen for popstate for browser back/forward
     window.addEventListener("popstate", navigationHandler);
+
+    // Listen for video events to re-extract colors when video starts or changes
+    // This ensures we get the video thumbnail when playback begins
+    let lastVideoSrc = "";
+    videoPlayHandler = () => {
+      const video = document.querySelector("video") as HTMLVideoElement;
+      if (video && video.src && video.src !== lastVideoSrc) {
+        lastVideoSrc = video.src;
+        logger.log("Video source changed - re-extracting colors");
+
+        // Reset image tracking to force re-extraction
+        lastImageSrc = "";
+        currentAlbumArtUrl = "";
+
+        // Small delay to ensure video is fully loaded
+        setTimeout(() => {
+          debouncedUpdate();
+        }, 500);
+      }
+    };
+
+    const attachVideoListeners = (video: HTMLVideoElement) => {
+      if (!videoPlayHandler) return;
+      video.removeEventListener("play", videoPlayHandler);
+      video.removeEventListener("loadeddata", videoPlayHandler);
+      video.addEventListener("play", videoPlayHandler);
+      video.addEventListener("loadeddata", videoPlayHandler);
+    };
+
+    const video = document.querySelector("video") as HTMLVideoElement;
+    if (video) {
+      attachVideoListeners(video);
+    }
+
+    // Observe for video element being added/changed
+    const videoObserver = new MutationObserver(() => {
+      const video = document.querySelector("video") as HTMLVideoElement;
+      if (video) {
+        attachVideoListeners(video);
+      }
+    });
+
+    // Observe the entire app for video element changes (more robust)
+    const appElement = document.querySelector("ytmusic-app");
+    if (appElement) {
+      videoObserver.observe(appElement, { childList: true, subtree: true });
+    }
 
     playerPageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
@@ -592,6 +645,15 @@ const cleanup = () => {
     document.removeEventListener("yt-navigate-finish", navigationHandler);
     window.removeEventListener("popstate", navigationHandler);
     navigationHandler = null;
+  }
+
+  if (videoPlayHandler) {
+    const video = document.querySelector("video");
+    if (video) {
+      video.removeEventListener("play", videoPlayHandler);
+      video.removeEventListener("loadeddata", videoPlayHandler);
+    }
+    videoPlayHandler = null;
   }
 
   if (navigationRetryTimeoutId !== null) {

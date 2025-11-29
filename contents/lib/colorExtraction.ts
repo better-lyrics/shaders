@@ -305,7 +305,34 @@ const waitForAlbumArt = async (maxWaitMs: number = 2000): Promise<HTMLImageEleme
   });
 };
 
+const isVideoPlaying = (): boolean => {
+  const video = document.querySelector("video") as HTMLVideoElement;
+  return video && !video.paused && video.readyState >= 2;
+};
+
 const findValidImage = async (): Promise<HTMLImageElement | null> => {
+  const videoId = getVideoIdFromUrl();
+
+  // If video is actively playing, prefer the YouTube thumbnail
+  // This ensures videos get their actual thumbnail instead of album art
+  if (videoId && isVideoPlaying()) {
+    logger.log("Video is playing - using YouTube thumbnail for video ID:", videoId);
+    const thumbnailUrls = [
+      `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+    ];
+
+    for (const url of thumbnailUrls) {
+      const img = await createImageFromUrl(url);
+      if (img && img.naturalHeight > 90) {
+        logger.log("Found YouTube thumbnail:", url);
+        return img;
+      }
+    }
+  }
+
+  // For music tracks (or if video thumbnail failed), use album art
   const songImageDiv = document.getElementById("song-image");
   const albumArt = songImageDiv?.querySelector("img") as HTMLImageElement;
 
@@ -314,7 +341,7 @@ const findValidImage = async (): Promise<HTMLImageElement | null> => {
     return albumArt;
   }
 
-  const videoId = getVideoIdFromUrl();
+  // Wait for album art if not ready yet
   if (videoId) {
     logger.log("Album art not ready, waiting briefly...");
     const waitedAlbumArt = await waitForAlbumArt(1500);
@@ -323,7 +350,8 @@ const findValidImage = async (): Promise<HTMLImageElement | null> => {
       return waitedAlbumArt;
     }
 
-    logger.log("Trying YouTube thumbnail for video ID:", videoId);
+    // Final fallback: try YouTube thumbnail even if video not actively playing
+    logger.log("Trying YouTube thumbnail as fallback for video ID:", videoId);
     const thumbnailUrls = [
       `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
       `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
