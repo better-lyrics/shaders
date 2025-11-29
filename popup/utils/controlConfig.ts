@@ -57,6 +57,10 @@ export const getControlConfig = (key: string): ControlConfig => {
     min = 0.01;
     max = 0.75;
     step = 0.005;
+  } else if (key === "kawarpOpacity") {
+    min = 0;
+    max = 1;
+    step = 0.01;
   } else if (key === "kawarpWarpIntensity") {
     min = 0;
     max = 1;

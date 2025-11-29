@@ -3,6 +3,7 @@ import type { DynamicMultipliers, GradientSettings } from "../../shared/constant
 import { logger } from "../../shared/utils/logger";
 
 interface KawarpState {
+  backdrop: HTMLDivElement | null;
   container: HTMLDivElement | null;
   canvas: HTMLCanvasElement | null;
   instance: Kawarp | null;
@@ -11,9 +12,13 @@ interface KawarpState {
   lastMultipliers: DynamicMultipliers | null;
   observer: IntersectionObserver | null;
   isVisible: boolean;
+  isTransitioning: boolean;
+  pendingImageUrl: string | null;
+  transitionTimeoutId: number | null;
 }
 
 const createEmptyState = (): KawarpState => ({
+  backdrop: null,
   container: null,
   canvas: null,
   instance: null,
@@ -22,6 +27,9 @@ const createEmptyState = (): KawarpState => ({
   lastMultipliers: null,
   observer: null,
   isVisible: true,
+  isTransitioning: false,
+  pendingImageUrl: null,
+  transitionTimeoutId: null,
 });
 
 const kawarps = new Map<string, KawarpState>();
@@ -42,7 +50,7 @@ const settingsEqual = (a: GradientSettings | null, b: GradientSettings): boolean
     a.kawarpAnimationSpeed === b.kawarpAnimationSpeed &&
     a.kawarpSaturation === b.kawarpSaturation &&
     a.kawarpDithering === b.kawarpDithering &&
-    a.opacity === b.opacity
+    a.kawarpOpacity === b.kawarpOpacity
   );
 };
 
@@ -62,28 +70,65 @@ const getTargetElement = (targetSelector: string): Element | null => {
   return document.querySelector(".background-gradient.style-scope.ytmusic-browse-response");
 };
 
-const waitForTargetReady = async (targetSelector: string): Promise<boolean> => {
-  return new Promise(resolve => {
-    const checkReady = () => {
-      const target = getTargetElement(targetSelector);
-      const hasContent = target && target.children.length > 0;
+const waitForTargetReady = async (targetSelector: string, maxWaitMs: number = 5000): Promise<boolean> => {
+  const target = getTargetElement(targetSelector);
+  const hasContent = target && target.children.length > 0;
 
-      if (hasContent) {
+  if (hasContent) {
+    const delay = targetSelector === "player-page" ? 1000 : 100;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return true;
+  }
+
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      observer.disconnect();
+      resolve(false);
+    }, maxWaitMs);
+
+    const observer = new MutationObserver(() => {
+      const target = getTargetElement(targetSelector);
+      if (target && target.children.length > 0) {
+        clearTimeout(timeout);
+        observer.disconnect();
         const delay = targetSelector === "player-page" ? 1000 : 100;
         setTimeout(() => resolve(true), delay);
-      } else {
-        setTimeout(checkReady, 500);
       }
-    };
-    checkReady();
+    });
+
+    const appElement = document.querySelector("ytmusic-app");
+    if (appElement) {
+      observer.observe(appElement, { childList: true, subtree: true });
+    } else {
+      clearTimeout(timeout);
+      resolve(false);
+    }
   });
+};
+
+const getVideoIdFromUrl = (): string | null => {
+  const url = new URL(window.location.href);
+  return url.searchParams.get("v");
 };
 
 const getAlbumArtUrl = (): string | null => {
   const songImage = document.querySelector("#song-image img") as HTMLImageElement;
-  if (songImage?.src && !songImage.src.startsWith("data:")) {
+  if (songImage?.src && !songImage.src.startsWith("data:") && songImage.naturalHeight > 0) {
     return songImage.src;
   }
+
+  const videoId = getVideoIdFromUrl();
+  if (videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+  }
+
+  const playerBarThumbnail = document.querySelector(
+    "ytmusic-player-bar .thumbnail img, .middle-controls .thumbnail img"
+  ) as HTMLImageElement;
+  if (playerBarThumbnail?.src && !playerBarThumbnail.src.startsWith("data:") && playerBarThumbnail.naturalHeight > 0) {
+    return playerBarThumbnail.src;
+  }
+
   return null;
 };
 
@@ -121,6 +166,37 @@ export const createKawarp = async (
   state.container.id = `better-lyrics-kawarp-${location}`;
   const isBrowsePage = targetSelector !== "player-page";
 
+  state.backdrop = document.createElement("div");
+  state.backdrop.id = `better-lyrics-kawarp-backdrop-${location}`;
+  state.backdrop.style.cssText = isBrowsePage
+    ? `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      background-color: #000;
+      opacity: 0;
+      will-change: opacity;
+      transition: opacity 0.5s ease-out;
+    `
+    : `
+      --sidebar: 240px;
+      position: absolute;
+      top: -64px;
+      left: calc(-1 * var(--sidebar));
+      width: calc(100% + var(--sidebar));
+      height: calc(100% + 128px);
+      pointer-events: none;
+      z-index: -2;
+      background-color: #000;
+      opacity: 0;
+      will-change: opacity;
+      transition: opacity 0.5s ease-out;
+    `;
+
   state.container.style.cssText = isBrowsePage
     ? `
       position: fixed;
@@ -156,7 +232,8 @@ export const createKawarp = async (
   `;
   state.container.appendChild(state.canvas);
 
-  targetElement.insertBefore(state.container, targetElement.firstChild);
+  targetElement.insertBefore(state.backdrop, targetElement.firstChild);
+  targetElement.insertBefore(state.container, state.backdrop.nextSibling);
 
   const dynamicSpeed = settings.kawarpAnimationSpeed * multipliers.speedMultiplier;
 
@@ -211,7 +288,10 @@ export const createKawarp = async (
 
   requestAnimationFrame(() => {
     if (state.container) {
-      state.container.style.opacity = settings.opacity.toString();
+      state.container.style.opacity = settings.kawarpOpacity.toString();
+    }
+    if (state.backdrop) {
+      state.backdrop.style.opacity = "1";
     }
   });
 
@@ -223,6 +303,10 @@ export const destroyKawarp = (location?: string): void => {
     const state = getKawarpState(location);
     logger.log(`Destroying kawarp for location: ${location}`);
 
+    if (state.transitionTimeoutId !== null) {
+      clearTimeout(state.transitionTimeoutId);
+      state.transitionTimeoutId = null;
+    }
     if (state.observer) {
       state.observer.disconnect();
       state.observer = null;
@@ -236,11 +320,17 @@ export const destroyKawarp = (location?: string): void => {
       state.container.remove();
       state.container = null;
     }
+    if (state.backdrop) {
+      state.backdrop.remove();
+      state.backdrop = null;
+    }
     state.canvas = null;
     state.currentImageUrl = null;
     state.lastSettings = null;
     state.lastMultipliers = null;
     state.isVisible = true;
+    state.isTransitioning = false;
+    state.pendingImageUrl = null;
 
     kawarps.delete(location);
   } else {
@@ -251,22 +341,56 @@ export const destroyKawarp = (location?: string): void => {
   }
 };
 
+const processImageTransition = async (state: KawarpState, imageUrl: string, location: string): Promise<void> => {
+  if (!state.instance || !state.container) return;
+
+  const transitionDuration = state.lastSettings?.kawarpTransitionDuration ?? 1000;
+
+  state.isTransitioning = true;
+
+  if (state.transitionTimeoutId !== null) {
+    clearTimeout(state.transitionTimeoutId);
+  }
+
+  try {
+    await state.instance.loadImage(imageUrl);
+    state.currentImageUrl = imageUrl;
+    lastKnownImageUrl = imageUrl;
+    logger.log(`Updated kawarp image for ${location}:`, imageUrl);
+  } catch (error) {
+    logger.error("Failed to update kawarp image:", error);
+    state.isTransitioning = false;
+    return;
+  }
+
+  state.transitionTimeoutId = window.setTimeout(() => {
+    state.isTransitioning = false;
+    state.transitionTimeoutId = null;
+
+    if (state.pendingImageUrl && state.pendingImageUrl !== state.currentImageUrl) {
+      const pendingUrl = state.pendingImageUrl;
+      state.pendingImageUrl = null;
+      logger.log(`Processing queued image for ${location}:`, pendingUrl);
+      processImageTransition(state, pendingUrl, location);
+    }
+  }, transitionDuration);
+};
+
 export const updateKawarpImage = async (location: string = "player"): Promise<void> => {
   const state = getKawarpState(location);
 
   if (!state.instance || !state.container) return;
 
   const albumArtUrl = getAlbumArtUrl();
-  if (albumArtUrl && albumArtUrl !== state.currentImageUrl) {
-    try {
-      await state.instance.loadImage(albumArtUrl);
-      state.currentImageUrl = albumArtUrl;
-      lastKnownImageUrl = albumArtUrl;
-      logger.log(`Updated kawarp image for ${location}:`, albumArtUrl);
-    } catch (error) {
-      logger.error("Failed to update kawarp image:", error);
-    }
+  if (!albumArtUrl || albumArtUrl === state.currentImageUrl) return;
+
+  if (state.isTransitioning) {
+    logger.log(`Transition in progress for ${location}, queueing image:`, albumArtUrl);
+    state.pendingImageUrl = albumArtUrl;
+    return;
   }
+
+  await processImageTransition(state, albumArtUrl, location);
 };
 
 export const updateKawarpSpeed = (
@@ -338,8 +462,9 @@ export const updateKawarpSettings = (
     state.lastSettings = { ...settings };
     state.lastMultipliers = { ...multipliers };
 
-    if (state.container && state.container.style.opacity !== settings.opacity.toString()) {
-      state.container.style.opacity = settings.opacity.toString();
+    const opacityStr = settings.kawarpOpacity.toString();
+    if (state.container && state.container.style.opacity !== opacityStr) {
+      state.container.style.opacity = opacityStr;
     }
   };
 

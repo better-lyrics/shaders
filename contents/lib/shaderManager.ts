@@ -126,20 +126,39 @@ const getTargetElement = (targetSelector: string): Element | null => {
   return document.querySelector(".background-gradient.style-scope.ytmusic-browse-response");
 };
 
-const waitForTargetReady = async (targetSelector: string): Promise<boolean> => {
-  return new Promise(resolve => {
-    const checkReady = () => {
-      const target = getTargetElement(targetSelector);
-      const hasContent = target && target.children.length > 0;
+const waitForTargetReady = async (targetSelector: string, maxWaitMs: number = 5000): Promise<boolean> => {
+  const target = getTargetElement(targetSelector);
+  const hasContent = target && target.children.length > 0;
 
-      if (hasContent) {
+  if (hasContent) {
+    const delay = targetSelector === "player-page" ? 1000 : 100;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return true;
+  }
+
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      observer.disconnect();
+      resolve(false);
+    }, maxWaitMs);
+
+    const observer = new MutationObserver(() => {
+      const target = getTargetElement(targetSelector);
+      if (target && target.children.length > 0) {
+        clearTimeout(timeout);
+        observer.disconnect();
         const delay = targetSelector === "player-page" ? 1000 : 100;
         setTimeout(() => resolve(true), delay);
-      } else {
-        setTimeout(checkReady, 500);
       }
-    };
-    checkReady();
+    });
+
+    const appElement = document.querySelector("ytmusic-app");
+    if (appElement) {
+      observer.observe(appElement, { childList: true, subtree: true });
+    } else {
+      clearTimeout(timeout);
+      resolve(false);
+    }
   });
 };
 

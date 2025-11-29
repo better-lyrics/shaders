@@ -13,6 +13,7 @@ export interface GradientSettings {
   speed: number;
   opacity: number;
   // Kawarp settings
+  kawarpOpacity: number;
   kawarpWarpIntensity: number;
   kawarpBlurPasses: number;
   kawarpAnimationSpeed: number;
@@ -52,6 +53,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   speed: 0.5,
   opacity: 0.33,
   // Kawarp defaults (matching @kawarp/core defaults)
+  kawarpOpacity: 0.75,
   kawarpWarpIntensity: 1.0,
   kawarpBlurPasses: 8,
   kawarpAnimationSpeed: 1.0,

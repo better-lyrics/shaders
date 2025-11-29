@@ -37,6 +37,7 @@ let navigationHandler: (() => void) | null = null;
 let songImageObserver: MutationObserver | null = null;
 let playerPageObserver: MutationObserver | null = null;
 let waitForSongImageTimeoutId: number | null = null;
+let navigationRetryTimeoutId: NodeJS.Timeout | null = null;
 
 const debouncedSaveAlbumColors = (
   albumUrl: string,
@@ -341,6 +342,15 @@ const checkAndUpdateGradient = async (): Promise<void> => {
       } else {
         await kawarpManager.updateKawarpImage("player");
       }
+
+      if (gradientSettings.showOnBrowsePages) {
+        if (hasHomepageEffect) {
+          await kawarpManager.updateKawarpImage("homepage");
+        }
+        if (hasSearchEffect) {
+          await kawarpManager.updateKawarpImage("search");
+        }
+      }
     } else {
       logger.log("On player page - extracting colors for mesh gradient");
       await extractAndUpdateColors();
@@ -480,7 +490,6 @@ const initializeApp = async (): Promise<void> => {
 
     songImageObserver = new MutationObserver(mutations => {
       for (const mutation of mutations) {
-        // Consolidated condition check
         if (
           (mutation.type === "attributes" && mutation.attributeName === "src") ||
           (mutation.type === "childList" && mutation.addedNodes.length > 0)
@@ -491,7 +500,7 @@ const initializeApp = async (): Promise<void> => {
       }
     });
 
-    const waitForSongImage = () => {
+    const setupImageObservers = () => {
       const songImage = document.getElementById("song-image");
       if (songImage && songImageObserver) {
         songImageObserver.observe(songImage, {
@@ -500,6 +509,24 @@ const initializeApp = async (): Promise<void> => {
           attributes: true,
           attributeFilter: ["src"],
         });
+      }
+
+      const playerBarThumbnail = document.querySelector("ytmusic-player-bar .thumbnail");
+      if (playerBarThumbnail && songImageObserver) {
+        songImageObserver.observe(playerBarThumbnail, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["src"],
+        });
+      }
+    };
+
+    const waitForSongImage = () => {
+      const songImage = document.getElementById("song-image");
+      const playerBar = document.querySelector("ytmusic-player-bar");
+      if ((songImage || playerBar) && songImageObserver) {
+        setupImageObservers();
         waitForSongImageTimeoutId = null;
       } else {
         waitForSongImageTimeoutId = window.setTimeout(waitForSongImage, 1000);
@@ -516,6 +543,15 @@ const initializeApp = async (): Promise<void> => {
         logger.log("Video ID changed:", lastVideoId, "->", currentVideoId);
         lastVideoId = currentVideoId;
         debouncedUpdate();
+
+        if (navigationRetryTimeoutId) {
+          clearTimeout(navigationRetryTimeoutId);
+        }
+        navigationRetryTimeoutId = setTimeout(() => {
+          logger.log("Navigation retry - checking for updated album art");
+          debouncedUpdate();
+          navigationRetryTimeoutId = null;
+        }, 1500);
       }
     };
     // YouTube Music fires yt-navigate-finish on SPA navigation
@@ -556,6 +592,11 @@ const cleanup = () => {
     document.removeEventListener("yt-navigate-finish", navigationHandler);
     window.removeEventListener("popstate", navigationHandler);
     navigationHandler = null;
+  }
+
+  if (navigationRetryTimeoutId !== null) {
+    clearTimeout(navigationRetryTimeoutId);
+    navigationRetryTimeoutId = null;
   }
 
   if (waitForSongImageTimeoutId !== null) {

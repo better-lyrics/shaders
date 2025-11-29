@@ -131,14 +131,16 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             />
           )}
 
-          <ControlSlider
-            key="opacity"
-            keyName="opacity"
-            value={settings.opacity}
-            onChange={onSettingChange}
-            onReset={handleReset}
-            hint={sliderHints.opacity}
-          />
+          {isMeshGradient && (
+            <ControlSlider
+              key="opacity"
+              keyName="opacity"
+              value={settings.opacity}
+              onChange={onSettingChange}
+              onReset={handleReset}
+              hint={sliderHints.opacity}
+            />
+          )}
 
           {isMeshGradient && (
             <>
@@ -203,6 +205,14 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
 
           {isKawarp && (
             <>
+              <ControlSlider
+                key="kawarpOpacity"
+                keyName="kawarpOpacity"
+                value={settings.kawarpOpacity}
+                onChange={onSettingChange}
+                onReset={handleReset}
+                hint={sliderHints.opacity}
+              />
               <ControlSlider
                 key="kawarpWarpIntensity"
                 keyName="kawarpWarpIntensity"

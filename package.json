@@ -1,13 +1,19 @@
 {
   "name": "better-lyrics-shaders",
   "displayName": "Better Lyrics Shaders",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Add beautiful gradient effects to YouTube Music",
   "author": "Boidu",
   "scripts": {
     "dev": "plasmo dev --verbose",
-    "build": "plasmo build",
-    "package": "plasmo package",
+    "dev:firefox": "plasmo dev --target=firefox-mv2 --verbose",
+    "dev:edge": "plasmo dev --target=edge-mv3 --verbose",
+    "build": "plasmo build && plasmo build --target=firefox-mv2 && plasmo build --target=edge-mv3",
+    "build:firefox": "plasmo build --target=firefox-mv2",
+    "build:edge": "plasmo build --target=edge-mv3",
+    "package": "plasmo package && plasmo package --target=firefox-mv2 && plasmo package --target=edge-mv3",
+    "package:firefox": "plasmo package --target=firefox-mv2",
+    "package:edge": "plasmo package --target=edge-mv3",
     "lint:fix": "biome lint --write && biome format --write",
     "typecheck": "tsc --noEmit"
   },
