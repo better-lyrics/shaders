@@ -37,6 +37,9 @@ const initializeApp = async (): Promise<void> => {
     },
   });
 
+  // Initialize audio analysis early to avoid lag when song starts
+  audioAnalysis.initializeAudioAnalysis();
+
   setTimeout(async () => {
     await gradientController.checkAndUpdateGradient();
 
@@ -53,10 +56,7 @@ const initializeApp = async (): Promise<void> => {
       }
     }
 
-    setTimeout(async () => {
-      await audioAnalysis.initializeAudioAnalysis();
-      gradientController.startAudioIfEnabled();
-    }, 2000);
+    gradientController.startAudioIfEnabled();
 
     navigationManager.initialize(gradientController.checkAndUpdateGradient, gradientController.resetImageTracking);
   }, 0);

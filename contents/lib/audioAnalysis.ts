@@ -13,6 +13,9 @@ interface AudioAnalysisState {
   initTimeoutId: number | null;
   resumeContextHandler: (() => Promise<void>) | null;
   volumeChangeHandler: (() => void) | null;
+  playHandler: (() => void) | null;
+  pauseHandler: (() => void) | null;
+  onPlaybackStateChange: ((isPlaying: boolean) => void) | null;
 }
 
 const state: AudioAnalysisState = {
@@ -27,6 +30,9 @@ const state: AudioAnalysisState = {
   initTimeoutId: null,
   resumeContextHandler: null,
   volumeChangeHandler: null,
+  playHandler: null,
+  pauseHandler: null,
+  onPlaybackStateChange: null,
 };
 
 const ANALYSIS_INTERVAL = 100;
@@ -112,6 +118,19 @@ export const initializeAudioAnalysis = async (): Promise<void> => {
     };
     state.element.addEventListener("volumechange", state.volumeChangeHandler);
 
+    state.playHandler = () => {
+      if (state.onPlaybackStateChange) {
+        state.onPlaybackStateChange(true);
+      }
+    };
+    state.pauseHandler = () => {
+      if (state.onPlaybackStateChange) {
+        state.onPlaybackStateChange(false);
+      }
+    };
+    state.element.addEventListener("play", state.playHandler);
+    state.element.addEventListener("pause", state.pauseHandler);
+
     state.isInitialized = true;
     logger.log("Audio analysis initialized (volume-independent)");
   } catch (error) {
@@ -192,3 +211,11 @@ export const stopAudioAnalysis = (): void => {
 };
 
 export const isAudioInitialized = (): boolean => state.isInitialized;
+
+export const setPlaybackStateCallback = (callback: ((isPlaying: boolean) => void) | null): void => {
+  state.onPlaybackStateChange = callback;
+};
+
+export const isPlaying = (): boolean => {
+  return state.element ? !state.element.paused : false;
+};
