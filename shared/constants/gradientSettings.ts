@@ -25,6 +25,7 @@ export interface GradientSettings {
   audioSpeedMultiplier: number;
   audioScaleBoost: number;
   audioBeatThreshold: number;
+  pauseOnInactive: boolean;
   // Other settings
   showLogs: boolean;
   boostDullColors: boolean;
@@ -65,6 +66,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   audioSpeedMultiplier: 4,
   audioScaleBoost: 2,
   audioBeatThreshold: 0.105,
+  pauseOnInactive: true,
   // Other settings
   showLogs: false,
   boostDullColors: true,

@@ -82,6 +82,26 @@ const handleBeatDetected = (multipliers: DynamicMultipliers): void => {
   }
 };
 
+const handlePlaybackStateChange = (isPlaying: boolean): void => {
+  if (!gradientSettings.pauseOnInactive) return;
+
+  logger.log("Playback state changed:", isPlaying ? "playing" : "paused");
+
+  if (isPlaying) {
+    if (gradientSettings.shaderType === "kawarp") {
+      kawarpManager.resumeKawarp();
+    } else {
+      shaderManager.resumeShader();
+    }
+  } else {
+    if (gradientSettings.shaderType === "kawarp") {
+      kawarpManager.pauseKawarp();
+    } else {
+      shaderManager.pauseShader();
+    }
+  }
+};
+
 const handleAudioResponsiveToggle = (): void => {
   if (gradientSettings.audioResponsive && audioAnalysis.isAudioInitialized()) {
     audioAnalysis.startAudioAnalysis(gradientSettings, handleBeatDetected);
@@ -343,6 +363,7 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
   const wasShaderType = gradientSettings.shaderType;
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
+  const wasPauseOnInactive = gradientSettings.pauseOnInactive;
   const audioSettingsChanged =
     gradientSettings.audioSpeedMultiplier !== settings.audioSpeedMultiplier ||
     gradientSettings.audioScaleBoost !== settings.audioScaleBoost ||
@@ -397,6 +418,22 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
     await checkAndUpdateGradient();
   }
 
+  if (wasPauseOnInactive !== settings.pauseOnInactive) {
+    if (settings.pauseOnInactive && audioAnalysis.isAudioInitialized() && !audioAnalysis.isPlaying()) {
+      if (settings.shaderType === "kawarp") {
+        kawarpManager.pauseKawarp();
+      } else {
+        shaderManager.pauseShader();
+      }
+    } else if (!settings.pauseOnInactive) {
+      if (settings.shaderType === "kawarp") {
+        kawarpManager.resumeKawarp();
+      } else {
+        shaderManager.resumeShader();
+      }
+    }
+  }
+
   if (boostSettingsChanged && settings.shaderType === "mesh") {
     logger.log("Boost settings changed - re-extracting colors");
     colorExtraction.clearColorCache();
@@ -413,6 +450,7 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
 export const initializeSettings = async (): Promise<GradientSettings> => {
   gradientSettings = await storage.loadGradientSettings();
   logger.setEnabled(gradientSettings.showLogs);
+  audioAnalysis.setPlaybackStateCallback(handlePlaybackStateChange);
   return gradientSettings;
 };
 

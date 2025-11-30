@@ -18,6 +18,10 @@ interface KawarpState {
   currentScale: number;
   targetScale: number;
   scaleAnimationId: number | null;
+  currentSpeed: number;
+  targetSpeed: number;
+  speedAnimationId: number | null;
+  isPaused: boolean;
 }
 
 const createEmptyState = (): KawarpState => ({
@@ -36,11 +40,19 @@ const createEmptyState = (): KawarpState => ({
   currentScale: 1,
   targetScale: 1,
   scaleAnimationId: null,
+  currentSpeed: 1,
+  targetSpeed: 1,
+  speedAnimationId: null,
+  isPaused: false,
 });
 
 const SCALE_LERP_UP = 0.5;
 const SCALE_LERP_DOWN = 0.12;
 const SCALE_THRESHOLD = 0.001;
+
+const SPEED_LERP_UP = 0.05;
+const SPEED_LERP_DOWN = 0.03;
+const SPEED_THRESHOLD = 0.001;
 
 const animateScale = (state: KawarpState): void => {
   if (!state.instance) {
@@ -62,6 +74,31 @@ const animateScale = (state: KawarpState): void => {
   state.instance.setOptions({ scale: state.currentScale });
 
   state.scaleAnimationId = requestAnimationFrame(() => animateScale(state));
+};
+
+const animateSpeed = (state: KawarpState): void => {
+  if (!state.instance) {
+    state.speedAnimationId = null;
+    return;
+  }
+
+  const diff = state.targetSpeed - state.currentSpeed;
+
+  if (Math.abs(diff) < SPEED_THRESHOLD) {
+    state.currentSpeed = state.targetSpeed;
+    state.instance.animationSpeed = state.currentSpeed;
+    state.speedAnimationId = null;
+    if (state.currentSpeed === 0) {
+      state.instance.stop();
+    }
+    return;
+  }
+
+  const lerpFactor = diff > 0 ? SPEED_LERP_UP : SPEED_LERP_DOWN;
+  state.currentSpeed += diff * lerpFactor;
+  state.instance.animationSpeed = state.currentSpeed;
+
+  state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
 };
 
 const kawarps = new Map<string, KawarpState>();
@@ -279,6 +316,8 @@ export const createKawarp = async (
     scale: 1,
   });
 
+  state.currentSpeed = dynamicSpeed;
+  state.targetSpeed = dynamicSpeed;
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
@@ -319,14 +358,17 @@ export const createKawarp = async (
 
   void state.container.offsetHeight;
 
-  requestAnimationFrame(() => {
-    if (state.container) {
-      state.container.style.opacity = settings.kawarpOpacity.toString();
-    }
-    if (state.backdrop) {
-      state.backdrop.style.opacity = "1";
-    }
-  });
+  // Delay fade-in to let kawarp render a few frames first
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      if (state.container) {
+        state.container.style.opacity = settings.kawarpOpacity.toString();
+      }
+      if (state.backdrop) {
+        state.backdrop.style.opacity = "1";
+      }
+    });
+  }, 300);
 
   return true;
 };
@@ -343,6 +385,10 @@ export const destroyKawarp = (location?: string): void => {
     if (state.scaleAnimationId !== null) {
       cancelAnimationFrame(state.scaleAnimationId);
       state.scaleAnimationId = null;
+    }
+    if (state.speedAnimationId !== null) {
+      cancelAnimationFrame(state.speedAnimationId);
+      state.speedAnimationId = null;
     }
     if (state.observer) {
       state.observer.disconnect();
@@ -370,6 +416,9 @@ export const destroyKawarp = (location?: string): void => {
     state.pendingImageUrl = null;
     state.currentScale = 1;
     state.targetScale = 1;
+    state.currentSpeed = 1;
+    state.targetSpeed = 1;
+    state.isPaused = false;
 
     kawarps.delete(location);
   } else {
@@ -535,4 +584,52 @@ export const cleanupOrphanedKawarps = (): void => {
   const existingKawarps = document.querySelectorAll("[id^='better-lyrics-kawarp']");
   existingKawarps.forEach(kawarp => kawarp.remove());
   logger.log("Cleaned up orphaned kawarps:", existingKawarps.length);
+};
+
+export const pauseKawarp = (location?: string): void => {
+  const pauseForLocation = (loc: string) => {
+    const state = getKawarpState(loc);
+    if (!state.instance || state.isPaused) return;
+
+    state.isPaused = true;
+    state.targetSpeed = 0;
+
+    if (state.speedAnimationId === null) {
+      state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
+    }
+  };
+
+  if (location) {
+    pauseForLocation(location);
+  } else {
+    for (const loc of kawarps.keys()) {
+      pauseForLocation(loc);
+    }
+  }
+};
+
+export const resumeKawarp = (location?: string): void => {
+  const resumeForLocation = (loc: string) => {
+    const state = getKawarpState(loc);
+    if (!state.instance || !state.isVisible || !state.isPaused) return;
+
+    state.isPaused = false;
+    state.instance.start();
+
+    const baseSpeed = state.lastSettings?.kawarpAnimationSpeed ?? 1;
+    const multiplier = state.lastMultipliers?.speedMultiplier ?? 1;
+    state.targetSpeed = baseSpeed * multiplier;
+
+    if (state.speedAnimationId === null) {
+      state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
+    }
+  };
+
+  if (location) {
+    resumeForLocation(location);
+  } else {
+    for (const loc of kawarps.keys()) {
+      resumeForLocation(loc);
+    }
+  }
 };

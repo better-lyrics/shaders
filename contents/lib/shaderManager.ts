@@ -11,6 +11,10 @@ interface ShaderState {
   lastMultipliers: DynamicMultipliers | null;
   observer: IntersectionObserver | null;
   isVisible: boolean;
+  currentSpeed: number;
+  targetSpeed: number;
+  speedAnimationId: number | null;
+  isPaused: boolean;
 }
 
 const createEmptyState = (): ShaderState => ({
@@ -22,6 +26,10 @@ const createEmptyState = (): ShaderState => ({
   lastMultipliers: null,
   observer: null,
   isVisible: true,
+  currentSpeed: 0.5,
+  targetSpeed: 0.5,
+  speedAnimationId: null,
+  isPaused: false,
 });
 
 const shaders = new Map<string, ShaderState>();
@@ -36,6 +44,32 @@ const getShaderState = (location: string): ShaderState => {
 
 const colorVectorCache = new Map<string, number[]>();
 const MAX_COLOR_CACHE_SIZE = 100;
+
+const SPEED_LERP_UP = 0.05;
+const SPEED_LERP_DOWN = 0.03;
+const SPEED_THRESHOLD = 0.001;
+
+const animateSpeed = (state: ShaderState): void => {
+  if (!state.mount) {
+    state.speedAnimationId = null;
+    return;
+  }
+
+  const diff = state.targetSpeed - state.currentSpeed;
+
+  if (Math.abs(diff) < SPEED_THRESHOLD) {
+    state.currentSpeed = state.targetSpeed;
+    state.mount.setSpeed(state.currentSpeed);
+    state.speedAnimationId = null;
+    return;
+  }
+
+  const lerpFactor = diff > 0 ? SPEED_LERP_UP : SPEED_LERP_DOWN;
+  state.currentSpeed += diff * lerpFactor;
+  state.mount.setSpeed(state.currentSpeed);
+
+  state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
+};
 
 const getCachedColorVector = (color: string): number[] => {
   if (colorVectorCache.has(color)) {
@@ -238,6 +272,8 @@ export const createShader = async (
 
   const uniforms = buildMeshGradientUniforms(state.colorVectors, settings, multipliers);
   const speed = settings.speed * multipliers.speedMultiplier;
+  state.currentSpeed = speed;
+  state.targetSpeed = speed;
 
   // Performance optimizations: reduce pixel count and anti-aliasing for better GPU performance
   const minPixelRatio = 0.25; // Reduced from default 2.0 for lower anti-aliasing overhead
@@ -294,6 +330,10 @@ export const destroyShader = (location?: string): void => {
     const state = getShaderState(location);
     logger.log(`Destroying shader for location: ${location}`);
 
+    if (state.speedAnimationId !== null) {
+      cancelAnimationFrame(state.speedAnimationId);
+      state.speedAnimationId = null;
+    }
     if (state.observer) {
       state.observer.disconnect();
       state.observer = null;
@@ -311,6 +351,9 @@ export const destroyShader = (location?: string): void => {
     state.lastSettings = null;
     state.lastMultipliers = null;
     state.isVisible = true;
+    state.currentSpeed = 0.5;
+    state.targetSpeed = 0.5;
+    state.isPaused = false;
 
     shaders.delete(location);
   } else {
@@ -410,4 +453,51 @@ export const cleanupOrphanedGradients = (): void => {
 
 export const clearColorVectorCache = (): void => {
   colorVectorCache.clear();
+};
+
+export const pauseShader = (location?: string): void => {
+  const pauseForLocation = (loc: string) => {
+    const state = getShaderState(loc);
+    if (!state.mount || state.isPaused) return;
+
+    state.isPaused = true;
+    state.targetSpeed = 0;
+
+    if (state.speedAnimationId === null) {
+      state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
+    }
+  };
+
+  if (location) {
+    pauseForLocation(location);
+  } else {
+    for (const loc of shaders.keys()) {
+      pauseForLocation(loc);
+    }
+  }
+};
+
+export const resumeShader = (location?: string): void => {
+  const resumeForLocation = (loc: string) => {
+    const state = getShaderState(loc);
+    if (!state.mount || !state.isVisible || !state.isPaused) return;
+
+    state.isPaused = false;
+
+    const baseSpeed = state.lastSettings?.speed ?? 0.5;
+    const multiplier = state.lastMultipliers?.speedMultiplier ?? 1;
+    state.targetSpeed = baseSpeed * multiplier;
+
+    if (state.speedAnimationId === null) {
+      state.speedAnimationId = requestAnimationFrame(() => animateSpeed(state));
+    }
+  };
+
+  if (location) {
+    resumeForLocation(location);
+  } else {
+    for (const loc of shaders.keys()) {
+      resumeForLocation(loc);
+    }
+  }
 };
