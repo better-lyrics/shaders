@@ -4,24 +4,25 @@ import { logger } from "../../shared/utils/logger";
 interface AudioAnalysisState {
   context: AudioContext | null;
   analyser: AnalyserNode | null;
-  gainNode: GainNode | null;
-  element: HTMLAudioElement | null;
+  source: MediaElementAudioSourceNode | null;
+  element: HTMLMediaElement | null;
   rafId: number | null;
   isInitialized: boolean;
   dataArray: Uint8Array<ArrayBuffer> | null;
   lastAnalysisTime: number;
   initTimeoutId: number | null;
   resumeContextHandler: (() => Promise<void>) | null;
-  volumeChangeHandler: (() => void) | null;
   playHandler: (() => void) | null;
   pauseHandler: (() => void) | null;
   onPlaybackStateChange: ((isPlaying: boolean) => void) | null;
 }
 
+const connectedElements = new WeakSet<HTMLMediaElement>();
+
 const state: AudioAnalysisState = {
   context: null,
   analyser: null,
-  gainNode: null,
+  source: null,
   element: null,
   rafId: null,
   isInitialized: false,
@@ -29,24 +30,38 @@ const state: AudioAnalysisState = {
   lastAnalysisTime: 0,
   initTimeoutId: null,
   resumeContextHandler: null,
-  volumeChangeHandler: null,
   playHandler: null,
   pauseHandler: null,
   onPlaybackStateChange: null,
 };
 
 const ANALYSIS_INTERVAL = 100;
+const MIN_VOLUME_FOR_ANALYSIS = 0.01;
 
 const reusableMultipliers: DynamicMultipliers = { speedMultiplier: 1, scaleMultiplier: 1 };
 
-const nativeVolumeDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "volume");
-
-const getNativeVolume = (element: HTMLMediaElement): number => {
-  return nativeVolumeDescriptor?.get?.call(element) ?? 1;
+const removeElementListeners = (element: HTMLMediaElement): void => {
+  if (state.playHandler) {
+    element.removeEventListener("play", state.playHandler);
+  }
+  if (state.pauseHandler) {
+    element.removeEventListener("pause", state.pauseHandler);
+  }
 };
 
-const setNativeVolume = (element: HTMLMediaElement, value: number): void => {
-  nativeVolumeDescriptor?.set?.call(element, value);
+const addElementListeners = (element: HTMLMediaElement): void => {
+  state.playHandler = () => {
+    if (state.onPlaybackStateChange) {
+      state.onPlaybackStateChange(true);
+    }
+  };
+  state.pauseHandler = () => {
+    if (state.onPlaybackStateChange) {
+      state.onPlaybackStateChange(false);
+    }
+  };
+  element.addEventListener("play", state.playHandler);
+  element.addEventListener("pause", state.pauseHandler);
 };
 
 export const initializeAudioAnalysis = async (): Promise<void> => {
@@ -55,7 +70,7 @@ export const initializeAudioAnalysis = async (): Promise<void> => {
   }
 
   try {
-    state.element = document.querySelector("audio, video") as HTMLAudioElement;
+    state.element = document.querySelector("audio, video") as HTMLMediaElement;
     if (!state.element) {
       state.initTimeoutId = window.setTimeout(initializeAudioAnalysis, 1000);
       return;
@@ -92,47 +107,16 @@ export const initializeAudioAnalysis = async (): Promise<void> => {
     const bufferLength = state.analyser.frequencyBinCount;
     state.dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
 
-    state.gainNode = state.context.createGain();
-    const initialVolume = getNativeVolume(state.element);
-    state.gainNode.gain.value = initialVolume;
+    state.source = state.context.createMediaElementSource(state.element);
+    state.source.connect(state.analyser);
+    state.source.connect(state.context.destination);
 
-    const source = state.context.createMediaElementSource(state.element);
-    source.connect(state.analyser);
-    source.connect(state.gainNode);
-    state.gainNode.connect(state.context.destination);
+    connectedElements.add(state.element);
 
-    setNativeVolume(state.element, 1);
-
-    const element = state.element;
-    const gainNode = state.gainNode;
-    let isAdjusting = false;
-    state.volumeChangeHandler = () => {
-      if (isAdjusting) return;
-      const nativeVolume = getNativeVolume(element);
-      if (nativeVolume !== 1) {
-        isAdjusting = true;
-        gainNode.gain.value = nativeVolume;
-        setNativeVolume(element, 1);
-        isAdjusting = false;
-      }
-    };
-    state.element.addEventListener("volumechange", state.volumeChangeHandler);
-
-    state.playHandler = () => {
-      if (state.onPlaybackStateChange) {
-        state.onPlaybackStateChange(true);
-      }
-    };
-    state.pauseHandler = () => {
-      if (state.onPlaybackStateChange) {
-        state.onPlaybackStateChange(false);
-      }
-    };
-    state.element.addEventListener("play", state.playHandler);
-    state.element.addEventListener("pause", state.pauseHandler);
+    addElementListeners(state.element);
 
     state.isInitialized = true;
-    logger.log("Audio analysis initialized (volume-independent)");
+    logger.log("Audio analysis initialized (passthrough mode)");
   } catch (error) {
     logger.error("Error initializing audio analysis:", error);
   }
@@ -143,7 +127,7 @@ const analyzeAudioFrame = (
   onBeatDetected: (multipliers: DynamicMultipliers) => void,
   timestamp: number
 ): void => {
-  if (!state.analyser || !state.dataArray) {
+  if (!state.analyser || !state.dataArray || !state.element) {
     state.rafId = null;
     return;
   }
@@ -151,13 +135,16 @@ const analyzeAudioFrame = (
   if (timestamp - state.lastAnalysisTime >= ANALYSIS_INTERVAL) {
     state.analyser.getByteTimeDomainData(state.dataArray);
 
+    const currentVolume = state.element.volume;
+    const volumeMultiplier = currentVolume > MIN_VOLUME_FOR_ANALYSIS ? 1 / currentVolume : 1;
+
     let peak = 0;
     const length = state.dataArray.length;
-
     const threshold = settings.audioBeatThreshold;
 
     for (let i = 0; i < length; i++) {
-      const amplitude = Math.abs(state.dataArray[i] - 128) / 128;
+      const rawAmplitude = Math.abs(state.dataArray[i] - 128) / 128;
+      const amplitude = rawAmplitude * volumeMultiplier;
       if (amplitude > peak) {
         peak = amplitude;
         if (peak > threshold) break;
@@ -202,12 +189,57 @@ export const stopAudioAnalysis = (): void => {
     state.initTimeoutId = null;
   }
 
-  // NOTE: We intentionally do NOT close the AudioContext, disconnect nodes,
-  // or remove the volumechange listener because createMediaElementSource()
-  // permanently routes audio through Web Audio API. The volume interception
-  // must remain active to keep playback volume working correctly.
-
   state.lastAnalysisTime = 0;
+};
+
+const reconnectToNewElement = (newElement: HTMLMediaElement): void => {
+  if (!state.context) return;
+
+  if (state.element) {
+    removeElementListeners(state.element);
+  }
+
+  if (connectedElements.has(newElement)) {
+    logger.log("Element already has MediaElementSource, re-adding listeners");
+    state.element = newElement;
+    addElementListeners(newElement);
+    return;
+  }
+
+  state.analyser = state.context.createAnalyser();
+  state.analyser.fftSize = 1024;
+  state.analyser.smoothingTimeConstant = 0.8;
+
+  const bufferLength = state.analyser.frequencyBinCount;
+  state.dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
+
+  state.source = state.context.createMediaElementSource(newElement);
+  state.source.connect(state.analyser);
+  state.source.connect(state.context.destination);
+
+  connectedElements.add(newElement);
+
+  state.element = newElement;
+
+  addElementListeners(newElement);
+
+  logger.log("Audio analysis reconnected to new element");
+};
+
+export const checkAndReconnectElement = (): void => {
+  if (!state.isInitialized) return;
+
+  const currentElement = document.querySelector("audio, video") as HTMLMediaElement;
+
+  if (currentElement && currentElement !== state.element) {
+    logger.log("Audio element changed, reconnecting...");
+    reconnectToNewElement(currentElement);
+  } else if (state.element && !document.contains(state.element)) {
+    if (currentElement) {
+      logger.log("Old audio element detached, reconnecting to new one...");
+      reconnectToNewElement(currentElement);
+    }
+  }
 };
 
 export const isAudioInitialized = (): boolean => state.isInitialized;

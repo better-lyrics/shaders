@@ -1,4 +1,5 @@
 import { logger } from "../../shared/utils/logger";
+import { checkAndReconnectElement } from "./audioAnalysis";
 
 type UpdateCallback = () => void;
 type NavigationCallback = () => void;
@@ -98,6 +99,7 @@ const setupNavigationListener = (): void => {
       logger.log("Video ID changed:", lastVideoId, "->", currentVideoId);
       lastVideoId = currentVideoId;
 
+      checkAndReconnectElement();
       onNavigationChange?.();
       debouncedUpdate?.();
 
@@ -125,6 +127,7 @@ const setupVideoPlayListener = (): void => {
       lastVideoSrc = video.src;
       logger.log("Video source changed - re-extracting colors");
 
+      checkAndReconnectElement();
       onNavigationChange?.();
 
       setTimeout(() => {
