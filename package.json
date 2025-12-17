@@ -38,7 +38,12 @@
     "typescript": "^5.9.3"
   },
   "manifest": {
-    "host_permissions": ["https://music.youtube.com/*"],
-    "permissions": ["storage", "activeTab"]
+    "host_permissions": [
+      "https://music.youtube.com/*"
+    ],
+    "permissions": [
+      "storage",
+      "activeTab"
+    ]
   }
 }

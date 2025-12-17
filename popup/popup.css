@@ -87,6 +87,13 @@ body {
   margin-top: -2px;
 }
 
+.header-top-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .title {
   display: flex;
   align-items: center;
@@ -98,11 +105,23 @@ body {
   text-align: center;
 }
 
-.song-title {
+.github-link {
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.2s ease;
   display: flex;
-  gap: 4px;
   align-items: center;
   justify-content: center;
+}
+
+.github-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.song-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: start;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);
   margin: 0;
@@ -113,7 +132,7 @@ body {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  max-width: 300px;
+  width: 100%;
   overflow: hidden;
 }
 
