@@ -124,11 +124,15 @@ export const useGradientSettings = () => {
               "showOnBrowsePages",
               "rememberAlbumSettings",
               "enabled",
+              "pauseOnInactive",
             ];
 
             const isValid = Object.entries(mergedImport).every(([key, value]) => {
               if (booleanKeys.includes(key as keyof GradientSettings)) {
                 return typeof value === "boolean";
+              }
+              if (key === "shaderType") {
+                return value === "mesh" || value === "kawarp";
               }
               return typeof value === "number";
             });

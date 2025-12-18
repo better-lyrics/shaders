@@ -14,6 +14,9 @@ let navigationRetryTimeoutId: NodeJS.Timeout | null = null;
 
 let debouncedUpdate: UpdateCallback | null = null;
 let onNavigationChange: NavigationCallback | null = null;
+let visibilityPollInterval: NodeJS.Timeout | null = null;
+let lastVisibilityState: DocumentVisibilityState = "visible";
+let hiddenTimestamp = 0;
 
 export const initialize = (updateCallback: UpdateCallback, navigationChangeCallback: NavigationCallback): void => {
   let timeoutId: NodeJS.Timeout;
@@ -37,6 +40,7 @@ export const initialize = (updateCallback: UpdateCallback, navigationChangeCallb
   setupNavigationListener();
   setupVideoPlayListener();
   setupPlayerPageObserver();
+  setupVisibilityHandler();
 };
 
 const setupSongImageObserver = (): void => {
@@ -190,7 +194,42 @@ const setupPlayerPageObserver = (): void => {
   }
 };
 
+const setupVisibilityHandler = (): void => {
+  // YouTube Music blocks visibilitychange events, so we poll instead
+  const POLL_INTERVAL = 5000; // 5 seconds
+  const MIN_HIDDEN_DURATION = 60000; // 1 minute
+
+  visibilityPollInterval = setInterval(() => {
+    const currentState = document.visibilityState;
+    if (currentState !== lastVisibilityState) {
+      if (currentState === "hidden") {
+        hiddenTimestamp = Date.now();
+        logger.log("Tab hidden");
+      } else if (currentState === "visible" && lastVisibilityState === "hidden") {
+        const hiddenDuration = Date.now() - hiddenTimestamp;
+        if (hiddenDuration >= MIN_HIDDEN_DURATION) {
+          logger.log(`Tab visible after ${Math.round(hiddenDuration / 1000)}s, refreshing gradient`);
+          onNavigationChange?.();
+          debouncedUpdate?.();
+        } else {
+          logger.log(`Tab visible after ${Math.round(hiddenDuration / 1000)}s, skipping refresh`);
+        }
+      }
+      lastVisibilityState = currentState;
+    }
+  }, POLL_INTERVAL);
+
+  logger.log("Visibility polling started");
+};
+
 export const cleanup = (): void => {
+  if (visibilityPollInterval) {
+    clearInterval(visibilityPollInterval);
+    visibilityPollInterval = null;
+    lastVisibilityState = "visible";
+    hiddenTimestamp = 0;
+  }
+
   if (navigationHandler) {
     document.removeEventListener("yt-navigate-finish", navigationHandler);
     window.removeEventListener("popstate", navigationHandler);
