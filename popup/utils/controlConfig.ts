@@ -55,7 +55,7 @@ export const getControlConfig = (key: string): ControlConfig => {
     step = 1;
   } else if (key === "audioBeatThreshold") {
     min = 0.01;
-    max = 0.75;
+    max = 1.5;
     step = 0.005;
   } else if (key === "kawarpOpacity") {
     min = 0;
