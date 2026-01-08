@@ -153,7 +153,7 @@ const analyzeAudioFrame = (
 
     const isBeat = peak > threshold;
 
-    const scaleBoost = settings.audioScaleBoost;
+    const scaleBoost = settings.kawarpAudioScaleBoost;
 
     reusableMultipliers.speedMultiplier = settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1;
     reusableMultipliers.scaleMultiplier = settings.audioResponsive && isBeat ? 1 + scaleBoost / 100 : 1;

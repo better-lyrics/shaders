@@ -5,7 +5,6 @@ import * as gradientController from "./lib/gradientController";
 import * as kawarpManager from "./lib/kawarpManager";
 import * as messageHandler from "./lib/messageHandler";
 import * as navigationManager from "./lib/navigationManager";
-import * as shaderManager from "./lib/shaderManager";
 
 export const config: PlasmoCSConfig = {
   matches: ["https://music.youtube.com/*"],
@@ -17,19 +16,15 @@ const initializeApp = async (): Promise<void> => {
 
   logger.log("Better Lyrics Shaders: Initializing...");
   logger.log("Loaded settings:", settings);
-  logger.log("Shaders enabled:", settings.enabled);
-  logger.log("Shader type:", settings.shaderType);
+  logger.log("Effects enabled:", settings.enabled);
 
-  shaderManager.cleanupOrphanedGradients();
   kawarpManager.cleanupOrphanedKawarps();
 
   messageHandler.setupMessageListener({
-    onColorsUpdate: gradientController.updateGradientColors,
     onSettingsUpdate: gradientController.updateGradientSettings,
     getCurrentData: () => {
       const songInfo = messageHandler.getSongInfo();
       return {
-        colors: shaderManager.getCurrentColors(),
         songTitle: songInfo.title,
         songAuthor: songInfo.author,
         gradientSettings: gradientController.getSettings(),
@@ -37,7 +32,6 @@ const initializeApp = async (): Promise<void> => {
     },
   });
 
-  // Initialize audio analysis early to avoid lag when song starts
   audioAnalysis.initializeAudioAnalysis();
 
   setTimeout(async () => {
@@ -58,7 +52,7 @@ const initializeApp = async (): Promise<void> => {
 
     gradientController.startAudioIfEnabled();
 
-    navigationManager.initialize(gradientController.checkAndUpdateGradient, gradientController.resetImageTracking);
+    navigationManager.initialize(gradientController.checkAndUpdateGradient);
   }, 0);
 };
 

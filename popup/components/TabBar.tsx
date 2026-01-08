@@ -15,8 +15,8 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
       >
         Controls
       </button>
-      <button className={`tab ${activeTab === "colors" ? "tab--active" : ""}`} onClick={() => onTabChange("colors")}>
-        Colors
+      <button className={`tab ${activeTab === "about" ? "tab--active" : ""}`} onClick={() => onTabChange("about")}>
+        About
       </button>
     </div>
   );

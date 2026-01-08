@@ -1,14 +1,9 @@
 import React from "react";
 import "./popup.css";
 
-// Hooks
 import { useContentScript, useGradientSettings, useTabState } from "./hooks";
-
-// Components
 import { AboutTab, ControlsTab, Header, TabBar } from "./components";
-
-// Types
-import { GradientSettings, ShaderType } from "./types";
+import { GradientSettings } from "./types";
 
 const Popup: React.FC = () => {
   const { activeTab, setActiveTab } = useTabState();
@@ -34,12 +29,6 @@ const Popup: React.FC = () => {
     await updateGradientSettings(newSettings);
   };
 
-  const handleShaderTypeChange = async (type: ShaderType) => {
-    const newSettings = { ...gradientSettings, shaderType: type };
-    await setGradientSettings(newSettings);
-    await updateGradientSettings(newSettings);
-  };
-
   const handleResetAllGradientSettings = async () => {
     const newSettings = await resetGradientSettings();
     await updateGradientSettings(newSettings);
@@ -52,7 +41,6 @@ const Popup: React.FC = () => {
   const handleImportSettings = async () => {
     const importedSettings = await importSettings();
     if (importedSettings) {
-      // Update content script with imported settings
       await updateGradientSettings(importedSettings);
     }
   };
@@ -64,14 +52,13 @@ const Popup: React.FC = () => {
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="content">
-        {activeTab === "colors" && <AboutTab />}
+        {activeTab === "about" && <AboutTab />}
 
         {activeTab === "controls" && (
           <ControlsTab
             settings={gradientSettings}
             onSettingChange={handleGradientSettingChange}
             onToggleChange={handleToggleChange}
-            onShaderTypeChange={handleShaderTypeChange}
             onResetAll={handleResetAllGradientSettings}
             onExport={handleExportSettings}
             onImport={handleImportSettings}

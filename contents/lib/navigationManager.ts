@@ -18,7 +18,7 @@ let visibilityPollInterval: NodeJS.Timeout | null = null;
 let lastVisibilityState: DocumentVisibilityState = "visible";
 let hiddenTimestamp = 0;
 
-export const initialize = (updateCallback: UpdateCallback, navigationChangeCallback: NavigationCallback): void => {
+export const initialize = (updateCallback: UpdateCallback, navigationChangeCallback?: NavigationCallback): void => {
   let timeoutId: NodeJS.Timeout;
   let isProcessing = false;
 
@@ -34,7 +34,7 @@ export const initialize = (updateCallback: UpdateCallback, navigationChangeCallb
     }, 300);
   };
 
-  onNavigationChange = navigationChangeCallback;
+  onNavigationChange = navigationChangeCallback ?? null;
 
   setupSongImageObserver();
   setupNavigationListener();

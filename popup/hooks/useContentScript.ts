@@ -3,7 +3,6 @@ import browser from "webextension-polyfill";
 import { GradientSettings } from "../types";
 
 interface ContentData {
-  colors: string[];
   songTitle: string;
   songAuthor: string;
   gradientSettings: GradientSettings;
@@ -11,7 +10,6 @@ interface ContentData {
 
 export const useContentScript = () => {
   const [data, setData] = useState<ContentData>({
-    colors: [],
     songTitle: "",
     songAuthor: "",
     gradientSettings: {} as GradientSettings,
@@ -32,20 +30,12 @@ export const useContentScript = () => {
     const response = (await sendMessage("getCurrentData")) as ContentData | undefined;
     if (response) {
       setData({
-        colors: response.colors || [],
         songTitle: response.songTitle || "",
         songAuthor: response.songAuthor || "",
         gradientSettings: response.gradientSettings || ({} as GradientSettings),
       });
     }
   }, [sendMessage]);
-
-  const updateColors = useCallback(
-    async (colors: string[]) => {
-      await sendMessage("updateColors", { colors });
-    },
-    [sendMessage]
-  );
 
   const updateGradientSettings = useCallback(
     async (settings: GradientSettings) => {
@@ -62,7 +52,6 @@ export const useContentScript = () => {
 
   return {
     ...data,
-    updateColors,
     updateGradientSettings,
     reload: loadCurrentData,
   };

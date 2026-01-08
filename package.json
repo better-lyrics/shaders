@@ -20,9 +20,7 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
     "@kawarp/core": "^1.1.1",
-    "@paper-design/shaders": "0.0.65",
     "@plasmohq/storage": "^1.9.0",
-    "colorthief": "^2.6.0",
     "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -31,7 +29,6 @@
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
     "@types/chrome": "0.0.245",
-    "@types/colorthief": "^2.6.0",
     "@types/node": "20.5.9",
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",

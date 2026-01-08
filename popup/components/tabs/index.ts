@@ -1,3 +1,2 @@
-// Re-export tab components
-export { ColorsTab } from "./ColorsTab";
+export { AboutTab } from "./AboutTab";
 export { ControlsTab } from "./ControlsTab";

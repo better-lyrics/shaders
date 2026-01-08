@@ -9,6 +9,24 @@ import {
 
 const storage = new Storage();
 
+interface LegacySettings {
+  shaderType?: string;
+  distortion?: number;
+  swirl?: number;
+  offsetX?: number;
+  offsetY?: number;
+  scale?: number;
+  rotation?: number;
+  speed?: number;
+  opacity?: number;
+  boostDullColors?: boolean;
+  vibrantSaturationThreshold?: number;
+  vibrantRatioThreshold?: number;
+  boostIntensity?: number;
+  rememberAlbumSettings?: boolean;
+  audioScaleBoost?: number;
+}
+
 export const useGradientSettings = () => {
   const [storedSettings, setStoredSettings] = useStorage<Partial<GradientSettings>>(
     {
@@ -18,8 +36,6 @@ export const useGradientSettings = () => {
     DEFAULT_GRADIENT_SETTINGS
   );
 
-  // Merge stored settings with defaults to handle version mismatches
-  // This ensures new settings have default values for existing users
   const mergedSettings = useMemo<GradientSettings>(() => {
     return {
       ...DEFAULT_GRADIENT_SETTINGS,
@@ -27,29 +43,23 @@ export const useGradientSettings = () => {
     };
   }, [storedSettings]);
 
-  // Local state for immediate UI updates
   const [localSettings, setLocalSettings] = useState<GradientSettings>(mergedSettings);
   const debounceRef = useRef<NodeJS.Timeout>();
 
-  // Sync local state when stored settings change (on mount or external changes)
   useEffect(() => {
     setLocalSettings(mergedSettings);
   }, [mergedSettings]);
 
-  // Update local state immediately, debounce storage write
   const updateGradientSetting = useCallback(
     (key: keyof GradientSettings, value: number) => {
       const newSettings = { ...localSettings, [key]: value };
 
-      // Update UI immediately
       setLocalSettings(newSettings);
 
-      // Clear existing debounce
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
 
-      // Debounce storage write for 300ms
       debounceRef.current = setTimeout(async () => {
         await setStoredSettings(newSettings);
       }, 300);
@@ -60,12 +70,10 @@ export const useGradientSettings = () => {
   );
 
   const resetGradientSettings = async () => {
-    // Clear any pending debounced updates
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // Update both local and stored settings immediately
     setLocalSettings(DEFAULT_GRADIENT_SETTINGS);
     await setStoredSettings(DEFAULT_GRADIENT_SETTINGS);
     return DEFAULT_GRADIENT_SETTINGS;
@@ -73,7 +81,7 @@ export const useGradientSettings = () => {
 
   const exportSettings = useCallback(() => {
     const settingsData = {
-      version: "1.0",
+      version: "2.0",
       settings: localSettings,
       exportedAt: new Date().toISOString(),
     };
@@ -110,19 +118,36 @@ export const useGradientSettings = () => {
           const data = JSON.parse(text);
 
           if (data.settings && typeof data.settings === "object") {
-            // Merge imported settings with defaults to handle missing keys from older exports
+            const importedSettings = data.settings as GradientSettings & LegacySettings;
+
+            const {
+              shaderType,
+              distortion,
+              swirl,
+              offsetX,
+              offsetY,
+              scale,
+              rotation,
+              speed,
+              opacity,
+              boostDullColors,
+              vibrantSaturationThreshold,
+              vibrantRatioThreshold,
+              boostIntensity,
+              rememberAlbumSettings,
+              audioScaleBoost,
+              ...validSettings
+            } = importedSettings;
+
             const mergedImport: GradientSettings = {
               ...DEFAULT_GRADIENT_SETTINGS,
-              ...data.settings,
+              ...validSettings,
             };
 
-            // Validate types for the imported settings
             const booleanKeys: (keyof GradientSettings)[] = [
               "audioResponsive",
               "showLogs",
-              "boostDullColors",
               "showOnBrowsePages",
-              "rememberAlbumSettings",
               "enabled",
               "pauseOnInactive",
             ];
@@ -131,20 +156,15 @@ export const useGradientSettings = () => {
               if (booleanKeys.includes(key as keyof GradientSettings)) {
                 return typeof value === "boolean";
               }
-              if (key === "shaderType") {
-                return value === "mesh" || value === "kawarp";
-              }
               return typeof value === "number";
             });
 
             if (isValid) {
               const settingsToSave = mergedImport;
-              // Clear any pending debounced updates
               if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
               }
 
-              // Update both local and stored settings immediately
               setLocalSettings(settingsToSave);
               await setStoredSettings(settingsToSave);
               resolve(settingsToSave);

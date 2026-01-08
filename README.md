@@ -2,14 +2,14 @@
 
 # Better Lyrics Shaders
 
-A Chrome extension that adds customizable visual effects to YouTube Music, featuring mesh gradients (Paper Shaders) and warped album art (Kawarp). Built with Plasmo, React, and TypeScript.
+A browser extension that adds beautiful animated backgrounds to YouTube Music using [Kawarp](https://kawarp.boidu.dev) - creating fluid, warped visuals from album artwork. Built with Plasmo, React, and TypeScript.
 
 > [!WARNING]
 > Although optional, it is **highly recommended** to use this extension alongside [Better Lyrics](https://github.com/boidushya/better-lyrics).
 
 ## Features
 
-- **Two Effect Modes**: Choose between mesh gradients (Paper Shaders) or warped album art (Kawarp)
+- **Fluid Animated Backgrounds**: Album artwork transforms into smooth, warped visuals
 - **Real-time Configuration**: Adjust settings and see changes instantly
 - **Persistent Settings**: Your configuration is saved automatically
 - **YouTube Music Integration**: Works on player pages, homepage, and search results
@@ -59,23 +59,19 @@ Then load the `build/chrome-mv3-dev` folder in Chrome.
 
 ## Configuration
 
-### Effect Type
-- **Mesh Gradient**: Animated color gradients with distortion and swirl effects
-- **Kawarp**: Warped and blurred album art with smooth animations
-
-### Mesh Gradient Settings
-- 5 gradient colors with full HSL control
-- Distortion, swirl, scale, and rotation controls
-- Speed and opacity adjustments
-
-### Kawarp Settings
-- Warp intensity and blur passes
-- Animation speed and saturation
-- Dithering control for smoother visuals
+### Visual Settings
+- **Opacity**: Control the visibility of the effect layer
+- **Warp Intensity**: How much the album art gets distorted
+- **Blur Passes**: Softness of the background (more = dreamier)
+- **Animation Speed**: How fast the fluid effect animates
+- **Transition Duration**: Crossfade time when switching songs
+- **Saturation**: Color intensity boost
+- **Dithering**: Subtle noise to prevent color banding
 
 ### Audio Reactive
 - Beat detection syncs effects with the music
 - Configurable speed and scale multipliers
+- Adjustable beat sensitivity
 
 ## Building for Production
 
@@ -91,7 +87,7 @@ bun run package  # Package for distribution
 - Build the project: `bun run build`
 - Load the correct folder (`build/chrome-mv3-prod`)
 
-### Gradient not showing
+### Effect not showing
 - Navigate to a YouTube Music player page
 - Check that the extension is enabled
 - Try refreshing the page
@@ -107,4 +103,4 @@ MIT
 
 ## Credits
 
-Built with [Paper Shaders](https://github.com/paper-design/shaders), [Kawarp](https://kawarp.boidu.dev), and the [Plasmo](https://www.plasmo.com/) framework.
+Built with [Kawarp](https://kawarp.boidu.dev) and the [Plasmo](https://www.plasmo.com/) framework.
