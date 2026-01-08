@@ -8,5 +8,5 @@ export { ResetIcon } from "./ResetIcon";
 export { EmptyState } from "./EmptyState";
 
 // Re-export tab components
-export { ColorsTab } from "./tabs/ColorsTab";
+export { AboutTab } from "./tabs/AboutTab";
 export { ControlsTab } from "./tabs/ControlsTab";

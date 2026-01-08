@@ -117,6 +117,7 @@ const animateSpeed = (state: KawarpState): void => {
 };
 
 const kawarps = new Map<string, KawarpState>();
+const creationInProgress = new Set<string>();
 let lastKnownImageUrl: string | null = null;
 
 const getKawarpState = (location: string): KawarpState => {
@@ -222,6 +223,13 @@ export const createKawarp = async (
   targetSelector: string = "player-page"
 ): Promise<boolean> => {
   const location = getLocationFromSelector(targetSelector);
+
+  // Prevent concurrent creation attempts
+  if (creationInProgress.has(location)) {
+    logger.log(`Kawarp creation already in progress for ${location}, skipping`);
+    return false;
+  }
+
   const state = getKawarpState(location);
 
   if (state.instance) {
@@ -229,8 +237,13 @@ export const createKawarp = async (
     destroyKawarp(location);
   }
 
+  creationInProgress.add(location);
+
   const isReady = await waitForTargetReady(targetSelector);
-  if (!isReady) return false;
+  if (!isReady) {
+    creationInProgress.delete(location);
+    return false;
+  }
 
   const targetElement = getTargetElement(targetSelector);
 
@@ -238,6 +251,7 @@ export const createKawarp = async (
 
   if (!targetElement) {
     logger.error("Target element not found for selector:", targetSelector);
+    creationInProgress.delete(location);
     return false;
   }
 
@@ -385,6 +399,7 @@ export const createKawarp = async (
     });
   }, 300);
 
+  creationInProgress.delete(location);
   return true;
 };
 
@@ -551,6 +566,13 @@ export const updateKawarpSettings = (
       return;
     }
 
+    // If container was removed from DOM, clean up state
+    if (!document.contains(state.container)) {
+      logger.log(`Container for ${loc} was removed from DOM, cleaning up state`);
+      destroyKawarp(loc);
+      return;
+    }
+
     if (settingsEqual(state.lastSettings, settings)) {
       return;
     }
@@ -586,9 +608,14 @@ export const updateKawarpSettings = (
 export const hasKawarp = (location?: string): boolean => {
   if (location) {
     const state = getKawarpState(location);
-    return state.instance !== null && state.container !== null;
+    return state.instance !== null && state.container !== null && document.contains(state.container);
   }
-  return kawarps.size > 0 && Array.from(kawarps.values()).some(s => s.instance !== null);
+  return (
+    kawarps.size > 0 &&
+    Array.from(kawarps.values()).some(
+      s => s.instance !== null && s.container !== null && document.contains(s.container)
+    )
+  );
 };
 
 export const getCurrentImageUrl = (): string | null => {

@@ -9,7 +9,7 @@ import * as shaderManager from "./lib/shaderManager";
 
 export const config: PlasmoCSConfig = {
   matches: ["https://music.youtube.com/*"],
-  all_frames: true,
+  all_frames: false,
 };
 
 const initializeApp = async (): Promise<void> => {

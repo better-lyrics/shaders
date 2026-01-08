@@ -1,18 +1,18 @@
-import React, { useState } from "react";
+import React from "react";
 import "./popup.css";
 
 // Hooks
 import { useContentScript, useGradientSettings, useTabState } from "./hooks";
 
 // Components
-import { ColorsTab, ControlsTab, Header, TabBar } from "./components";
+import { AboutTab, ControlsTab, Header, TabBar } from "./components";
 
 // Types
-import { GradientSettings, ShaderType, defaultSettings } from "./types";
+import { GradientSettings, ShaderType } from "./types";
 
 const Popup: React.FC = () => {
   const { activeTab, setActiveTab } = useTabState();
-  const { colors: currentSongColors, songTitle, songAuthor, updateColors, updateGradientSettings } = useContentScript();
+  const { songTitle, songAuthor, updateGradientSettings } = useContentScript();
 
   const {
     gradientSettings,
@@ -22,12 +22,6 @@ const Popup: React.FC = () => {
     exportSettings,
     importSettings,
   } = useGradientSettings();
-
-  const handleColorChange = async (index: number, color: string) => {
-    const newColors = [...currentSongColors];
-    newColors[index] = color;
-    await updateColors(newColors);
-  };
 
   const handleGradientSettingChange = async (key: keyof GradientSettings, value: number) => {
     const newSettings = updateGradientSetting(key, value);
@@ -70,14 +64,7 @@ const Popup: React.FC = () => {
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="content">
-        {activeTab === "colors" && (
-          <ColorsTab
-            colors={currentSongColors}
-            shaderType={gradientSettings.shaderType}
-            onColorChange={handleColorChange}
-            onColorsChange={updateColors}
-          />
-        )}
+        {activeTab === "colors" && <AboutTab />}
 
         {activeTab === "controls" && (
           <ControlsTab
