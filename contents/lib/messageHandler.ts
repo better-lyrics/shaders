@@ -1,3 +1,4 @@
+import browser from "webextension-polyfill";
 import type { GradientSettings } from "../../shared/constants/gradientSettings";
 
 interface MessageHandlers {
@@ -11,27 +12,29 @@ interface MessageHandlers {
   };
 }
 
+interface Message {
+  action: string;
+  colors?: string[];
+  settings?: GradientSettings;
+}
+
 export const setupMessageListener = (handlers: MessageHandlers): void => {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((msg: unknown) => {
+    const message = msg as Message;
+
     if (message.action === "getCurrentData" || message.action === "getCurrentColors") {
-      const data = handlers.getCurrentData();
-      sendResponse(data);
-      return true;
+      return Promise.resolve(handlers.getCurrentData());
     }
 
-    if (message.action === "updateColors") {
-      handlers.onColorsUpdate(message.colors).then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
+    if (message.action === "updateColors" && message.colors) {
+      return handlers.onColorsUpdate(message.colors).then(() => ({ success: true }));
     }
 
-    if (message.action === "updateGradientSettings") {
-      handlers.onSettingsUpdate(message.settings).then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
+    if (message.action === "updateGradientSettings" && message.settings) {
+      return handlers.onSettingsUpdate(message.settings).then(() => ({ success: true }));
     }
+
+    return Promise.resolve(undefined);
   });
 };
 

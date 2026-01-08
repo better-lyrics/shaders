@@ -54,6 +54,21 @@ const SPEED_LERP_UP = 0.05;
 const SPEED_LERP_DOWN = 0.03;
 const SPEED_THRESHOLD = 0.001;
 
+const loadImageSafely = async (instance: Kawarp, url: string): Promise<void> => {
+  try {
+    await instance.loadImage(url);
+  } catch {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    try {
+      await instance.loadImage(blobUrl);
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }
+};
+
 const animateScale = (state: KawarpState): void => {
   if (!state.instance) {
     state.scaleAnimationId = null;
@@ -324,7 +339,7 @@ export const createKawarp = async (
   const albumArtUrl = getAlbumArtUrl();
   if (albumArtUrl) {
     try {
-      await state.instance.loadImage(albumArtUrl);
+      await loadImageSafely(state.instance, albumArtUrl);
       state.currentImageUrl = albumArtUrl;
       lastKnownImageUrl = albumArtUrl;
       logger.log("Kawarp loaded album art:", albumArtUrl);
@@ -441,7 +456,7 @@ const processImageTransition = async (state: KawarpState, imageUrl: string, loca
   }
 
   try {
-    await state.instance.loadImage(imageUrl);
+    await loadImageSafely(state.instance, imageUrl);
     state.currentImageUrl = imageUrl;
     lastKnownImageUrl = imageUrl;
     logger.log(`Updated kawarp image for ${location}:`, imageUrl);
