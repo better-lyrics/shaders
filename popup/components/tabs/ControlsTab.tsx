@@ -21,7 +21,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
   onImport,
 }) => {
   const handleReset = (key: keyof GradientSettings) => {
-    if (key === "enabled" || key === "audioResponsive" || key === "showLogs" || key === "showOnBrowsePages") {
+    if (
+      key === "enabled" ||
+      key === "audioResponsive" ||
+      key === "showLogs" ||
+      key === "showOnBrowsePages" ||
+      key === "enableAnimatedArt"
+    ) {
       onToggleChange(key, defaultSettings[key] as boolean);
     } else {
       onSettingChange(key, defaultSettings[key] as number);
@@ -80,6 +86,13 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             value={settings.showOnBrowsePages}
             onChange={value => onToggleChange("showOnBrowsePages", value)}
             hint="Displays the effect on browse pages (homepage and search). Warning: May cause degraded performance on lower-end devices."
+          />
+
+          <ControlToggle
+            label="Animated Album Art"
+            value={settings.enableAnimatedArt}
+            onChange={value => onToggleChange("enableAnimatedArt", value)}
+            hint="Displays animated album artwork (Apple Music video loops) when available, replacing the static album thumbnail in the player bar."
           />
 
           <ControlSlider

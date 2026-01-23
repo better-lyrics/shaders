@@ -150,6 +150,7 @@ export const useGradientSettings = () => {
               "showOnBrowsePages",
               "enabled",
               "pauseOnInactive",
+              "enableAnimatedArt",
             ];
 
             const isValid = Object.entries(mergedImport).every(([key, value]) => {

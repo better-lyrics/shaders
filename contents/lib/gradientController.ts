@@ -4,6 +4,7 @@ import {
   type GradientSettings,
 } from "../../shared/constants/gradientSettings";
 import { logger } from "../../shared/utils/logger";
+import * as animatedArtManager from "./animatedArtManager";
 import * as audioAnalysis from "./audioAnalysis";
 import * as kawarpManager from "./kawarpManager";
 import * as storage from "./storage";
@@ -148,12 +149,18 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
   const wasAudioResponsive = gradientSettings.audioResponsive;
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
   const wasPauseOnInactive = gradientSettings.pauseOnInactive;
+  const wasAnimatedArtEnabled = gradientSettings.enableAnimatedArt;
   const audioSettingsChanged =
     gradientSettings.audioSpeedMultiplier !== settings.audioSpeedMultiplier ||
     gradientSettings.kawarpAudioScaleBoost !== settings.kawarpAudioScaleBoost ||
     gradientSettings.audioBeatThreshold !== settings.audioBeatThreshold;
 
   gradientSettings = settings;
+
+  // Handle animated art toggle
+  if (wasAnimatedArtEnabled !== settings.enableAnimatedArt) {
+    animatedArtManager.setEnabled(settings.enableAnimatedArt);
+  }
 
   logger.setEnabled(settings.showLogs);
 
@@ -201,6 +208,7 @@ export const initializeSettings = async (): Promise<GradientSettings> => {
   gradientSettings = await storage.loadGradientSettings();
   logger.setEnabled(gradientSettings.showLogs);
   audioAnalysis.setPlaybackStateCallback(handlePlaybackStateChange);
+  animatedArtManager.initialize(gradientSettings.enableAnimatedArt);
   return gradientSettings;
 };
 
@@ -221,4 +229,5 @@ export const hasActiveEffect = (): boolean => {
 export const cleanup = (): void => {
   audioAnalysis.stopAudioAnalysis();
   kawarpManager.destroyKawarp();
+  animatedArtManager.cleanup();
 };

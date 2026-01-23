@@ -17,6 +17,8 @@ export interface GradientSettings {
   // Other settings
   showLogs: boolean;
   showOnBrowsePages: boolean;
+  // Animated album art
+  enableAnimatedArt: boolean;
 }
 
 export interface DynamicMultipliers {
@@ -43,6 +45,8 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   // Other settings
   showLogs: false,
   showOnBrowsePages: false,
+  // Animated album art
+  enableAnimatedArt: true,
 };
 
 export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {
