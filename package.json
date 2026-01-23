@@ -37,8 +37,14 @@
     "typescript": "^5.9.3"
   },
   "manifest": {
-    "host_permissions": ["https://music.youtube.com/*", "https://i.ytimg.com/*", "https://*.googleusercontent.com/*"],
+    "host_permissions": ["https://music.youtube.com/*", "https://i.ytimg.com/*", "https://*.googleusercontent.com/*", "$PLASMO_PUBLIC_ARTWORK_HOST"],
     "permissions": ["storage", "activeTab"],
+    "web_accessible_resources": [
+      {
+        "resources": ["assets/earlyInject.js", "assets/playerScript.js"],
+        "matches": ["https://music.youtube.com/*"]
+      }
+    ],
     "browser_specific_settings": {
       "gecko": {
         "id": "better-lyrics-shaders@boidu.dev"
