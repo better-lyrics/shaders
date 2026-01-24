@@ -5,7 +5,7 @@ import {
   DEFAULT_GRADIENT_SETTINGS,
   GRADIENT_SETTINGS_STORAGE_KEY,
   type GradientSettings,
-} from "../../shared/constants/gradientSettings";
+} from "@/shared/constants/gradientSettings";
 
 const storage = new Storage();
 

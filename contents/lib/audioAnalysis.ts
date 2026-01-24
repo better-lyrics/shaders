@@ -1,5 +1,5 @@
-import type { DynamicMultipliers, GradientSettings } from "../../shared/constants/gradientSettings";
-import { logger } from "../../shared/utils/logger";
+import type { DynamicMultipliers, GradientSettings } from "@/shared/constants/gradientSettings";
+import { logger } from "@/shared/utils/logger";
 
 interface AudioAnalysisState {
   context: AudioContext | null;
@@ -38,7 +38,10 @@ const state: AudioAnalysisState = {
 const ANALYSIS_INTERVAL = 100;
 const MIN_VOLUME_FOR_ANALYSIS = 0.005;
 
-const reusableMultipliers: DynamicMultipliers = { speedMultiplier: 1, scaleMultiplier: 1 };
+const reusableMultipliers: DynamicMultipliers = {
+  speedMultiplier: 1,
+  scaleMultiplier: 1,
+};
 
 const removeElementListeners = (element: HTMLMediaElement): void => {
   if (state.playHandler) {

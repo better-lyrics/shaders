@@ -3,8 +3,8 @@ import {
   DEFAULT_GRADIENT_SETTINGS,
   GRADIENT_SETTINGS_STORAGE_KEY,
   type GradientSettings,
-} from "../../shared/constants/gradientSettings";
-import { logger } from "../../shared/utils/logger";
+} from "@/shared/constants/gradientSettings";
+import { logger } from "@/shared/utils/logger";
 
 const storage = new Storage();
 

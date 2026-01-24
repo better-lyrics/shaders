@@ -1,5 +1,5 @@
 import React from "react";
-import { TabType } from "../types";
+import { TabType } from "@/popup/types";
 
 interface TabBarProps {
   activeTab: TabType;

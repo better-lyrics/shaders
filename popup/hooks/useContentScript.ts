@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import browser from "webextension-polyfill";
-import { GradientSettings } from "../types";
+import { GradientSettings } from "@/popup/types";
 
 interface ContentData {
   songTitle: string;
@@ -17,7 +17,10 @@ export const useContentScript = () => {
 
   const sendMessage = useCallback(async (action: string, payload?: Record<string, unknown>) => {
     try {
-      const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (tab?.id) {
         return await browser.tabs.sendMessage(tab.id, { action, ...payload });
       }

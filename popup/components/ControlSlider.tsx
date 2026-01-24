@@ -1,8 +1,8 @@
 import React from "react";
-import { GradientSettings } from "../types";
+import { GradientSettings } from "@/popup/types";
 import { ResetIcon } from "./ResetIcon";
 import { Tooltip } from "./Tooltip";
-import { getControlConfig, formatValue, getControlLabel } from "../utils";
+import { getControlConfig, formatValue, getControlLabel } from "@/popup/utils";
 
 interface ControlSliderProps {
   keyName: string;

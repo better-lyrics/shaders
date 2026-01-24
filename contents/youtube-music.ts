@@ -1,5 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo";
-import { logger } from "../shared/utils/logger";
+import { logger } from "@/shared/utils/logger";
 import * as audioAnalysis from "./lib/audioAnalysis";
 import * as gradientController from "./lib/gradientController";
 import * as kawarpManager from "./lib/kawarpManager";

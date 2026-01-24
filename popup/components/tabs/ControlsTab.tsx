@@ -1,5 +1,5 @@
 import React from "react";
-import { GradientSettings, defaultSettings } from "../../types";
+import { GradientSettings, defaultSettings } from "@/popup/types";
 import { ControlSlider } from "../ControlSlider";
 import { ControlToggle } from "../ControlToggle";
 

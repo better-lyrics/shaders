@@ -1,6 +1,6 @@
 import Kawarp from "@kawarp/core";
-import type { DynamicMultipliers, GradientSettings } from "../../shared/constants/gradientSettings";
-import { logger } from "../../shared/utils/logger";
+import type { DynamicMultipliers, GradientSettings } from "@/shared/constants/gradientSettings";
+import { logger } from "@/shared/utils/logger";
 
 interface KawarpState {
   backdrop: HTMLDivElement | null;

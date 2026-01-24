@@ -12,7 +12,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/shared/*": ["./shared/*"],
+      "@/popup/*": ["./popup/*"]
+    }
   },
   "include": [".plasmo/index.d.ts", "**/*"],
   "exclude": ["node_modules", "build"]

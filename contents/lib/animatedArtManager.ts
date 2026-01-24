@@ -1,8 +1,11 @@
-import { logger } from "../../shared/utils/logger";
+import { Storage } from "@plasmohq/storage";
+import { logger } from "@/shared/utils/logger";
 
 const API_ENDPOINT = "https://artwork.boidu.dev";
 const VIDEO_ELEMENT_ID = "bls-video";
-const MAX_CACHE_SIZE = 50;
+const NOT_FOUND_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
+const storage = new Storage();
 
 interface PlayerData {
   videoId: string;
@@ -20,10 +23,11 @@ interface ArtworkResponse {
   videoUrl: string | null;
 }
 
-interface CacheEntry {
-  videoUrl: string | null;
-  timestamp: number;
+interface NotFoundEntry {
+  notFoundAt: number;
 }
+
+type CachedArtwork = string | NotFoundEntry;
 
 interface LongBylineRun {
   text: string;
@@ -51,7 +55,6 @@ let lastProcessedVideoId: string | null = null;
 let pendingFetch: AbortController | null = null;
 
 const videoIdToAlbumMap = new Map<string, string>();
-const artworkCache = new Map<string, CacheEntry>();
 
 function abortPendingFetch(): void {
   if (pendingFetch) {
@@ -60,7 +63,7 @@ function abortPendingFetch(): void {
   }
 }
 
-const extractAlbumFromDOMOnce = (): string | null => {
+function extractAlbumFromDOMOnce(): string | null {
   const byline =
     document.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
     document.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
@@ -68,18 +71,15 @@ const extractAlbumFromDOMOnce = (): string | null => {
 
   if (!byline) return null;
 
-  // Structure: "Artist1 • Artist2 • ... • Album • Year"
-  // With featured artists, there can be multiple artist links before the album
-  // Album is the LAST <a> element (year is plain text, not a link)
   const links = byline.querySelectorAll("a");
   if (links.length >= 2) {
     return links[links.length - 1].textContent?.trim() || null;
   }
 
   return null;
-};
+}
 
-const extractAlbumFromDOM = async (maxRetries = 10, delayMs = 100): Promise<string | null> => {
+async function extractAlbumFromDOM(maxRetries = 10, delayMs = 100): Promise<string | null> {
   for (let i = 0; i < maxRetries; i++) {
     const album = extractAlbumFromDOMOnce();
     if (album) {
@@ -90,7 +90,7 @@ const extractAlbumFromDOM = async (maxRetries = 10, delayMs = 100): Promise<stri
   }
   logger.log("Animated art: byline element not found after retries");
   return null;
-};
+}
 
 function isValidBylinePart(text: string | undefined): text is string {
   if (!text || text.length === 0) return false;
@@ -108,49 +108,41 @@ function extractBylineAlbum(longBylineText: { runs: LongBylineRun[] }): string {
   return "";
 }
 
-const processPlaylistContents = (contents: PlaylistContent[]): void => {
+function processPlaylistContents(contents: PlaylistContent[]): void {
   for (const content of contents) {
-    let renderer = content.playlistPanelVideoRenderer;
-    if (!renderer) {
-      renderer = content.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer;
-    }
+    const renderer =
+      content.playlistPanelVideoRenderer ||
+      content.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer;
 
-    if (!renderer) continue;
-
-    const videoId = renderer.videoId;
-    if (!videoId) continue;
+    if (!renderer?.videoId) continue;
 
     if (renderer.longBylineText) {
       const album = extractBylineAlbum(renderer.longBylineText);
       if (album) {
-        videoIdToAlbumMap.set(videoId, album);
+        videoIdToAlbumMap.set(renderer.videoId, album);
       }
     }
   }
 
-  // Prune old entries if map gets too large
   if (videoIdToAlbumMap.size > 100) {
     const keys = Array.from(videoIdToAlbumMap.keys());
     for (let i = 0; i < 50; i++) {
       videoIdToAlbumMap.delete(keys[i]);
     }
   }
-};
+}
 
-const extractFromNextResponse = (requestJson: unknown, responseJson: unknown): void => {
+function extractFromNextResponse(requestJson: unknown, responseJson: unknown): void {
   try {
     const request = requestJson as Record<string, unknown>;
     const response = responseJson as Record<string, unknown>;
 
-    // Get videoId from request
     const requestVideoId = request?.videoId as string;
 
-    // Get videoId from currentVideoEndpoint (this might be the CURRENT playing song)
     const endpoint = response?.currentVideoEndpoint as Record<string, unknown>;
     const watchEndpoint = endpoint?.watchEndpoint as Record<string, unknown>;
     const currentEndpointVideoId = watchEndpoint?.videoId as string;
 
-    // Process ALL songs in the queue (like Better Lyrics does)
     const contents = response?.contents as Record<string, unknown>;
     const singleColumn = contents?.singleColumnMusicWatchNextResultsRenderer as Record<string, unknown>;
     const tabbedRenderer = singleColumn?.tabbedRenderer as Record<string, unknown>;
@@ -175,14 +167,12 @@ const extractFromNextResponse = (requestJson: unknown, responseJson: unknown): v
       }
     }
 
-    // Fallback: continuationContents
     if (!playlistContents) {
       const continuationContents = response?.continuationContents as Record<string, unknown>;
       const playlistContinuation = continuationContents?.playlistPanelContinuation as Record<string, unknown>;
       playlistContents = playlistContinuation?.contents as PlaylistContent[];
     }
 
-    // Fallback: onResponseReceivedEndpoints
     if (!playlistContents) {
       const endpoints = response?.onResponseReceivedEndpoints as Array<Record<string, unknown>>;
       if (endpoints?.[0]) {
@@ -197,7 +187,6 @@ const extractFromNextResponse = (requestJson: unknown, responseJson: unknown): v
       processPlaylistContents(playlistContents);
     }
 
-    // Also extract album from browserMediaSession for the endpoint videoId
     const playerOverlays = response?.playerOverlays as Record<string, unknown>;
     const playerOverlayRenderer = playerOverlays?.playerOverlayRenderer as Record<string, unknown>;
     const browserMediaSession = playerOverlayRenderer?.browserMediaSession as Record<string, unknown>;
@@ -210,7 +199,6 @@ const extractFromNextResponse = (requestJson: unknown, responseJson: unknown): v
       const album = albumRuns?.[0]?.text as string;
 
       if (album) {
-        // Set for both videoIds if available
         if (requestVideoId) {
           videoIdToAlbumMap.set(requestVideoId, album);
         }
@@ -222,38 +210,50 @@ const extractFromNextResponse = (requestJson: unknown, responseJson: unknown): v
   } catch (error) {
     logger.log("Animated art: extraction error", error);
   }
-};
-
-function getCacheKey(song: string, artist: string, album: string): string {
-  return `${song}|${artist}|${album}`;
 }
 
-const pruneCache = (): void => {
-  if (artworkCache.size <= MAX_CACHE_SIZE) return;
+function getCacheKey(artist: string, album: string): string {
+  return `bls_${artist}|${album}`;
+}
 
-  const entries = Array.from(artworkCache.entries());
-  entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+function isNotFoundEntry(value: CachedArtwork): value is NotFoundEntry {
+  return typeof value === "object" && "notFoundAt" in value;
+}
 
-  const toRemove = entries.slice(0, entries.length - MAX_CACHE_SIZE);
-  for (const [key] of toRemove) {
-    artworkCache.delete(key);
-  }
-};
-
-const fetchArtworkUrl = async (
+async function fetchArtworkUrl(
   song: string,
   artist: string,
   duration: number,
   album: string,
   signal: AbortSignal
-): Promise<string | null> => {
-  const cacheKey = getCacheKey(song, artist, album);
-  const cached = artworkCache.get(cacheKey);
+): Promise<string | null> {
+  const cacheKey = getCacheKey(artist, album);
 
-  if (cached) {
-    logger.log("Animated art: cache hit", { hasVideo: !!cached.videoUrl });
-    return cached.videoUrl;
+  try {
+    const cached = await storage.get<CachedArtwork>(cacheKey);
+
+    if (cached !== undefined) {
+      if (typeof cached === "string") {
+        logger.log(`Animated art: cache hit for "${artist} - ${album}"`, {
+          cacheKey,
+        });
+        return cached;
+      }
+
+      if (isNotFoundEntry(cached)) {
+        const isExpired = Date.now() - cached.notFoundAt >= NOT_FOUND_EXPIRY_MS;
+        if (!isExpired) {
+          logger.log(`Animated art: cache hit (not found) for "${artist} - ${album}"`, { cacheKey });
+          return null;
+        }
+        logger.log(`Animated art: not-found cache expired for "${artist} - ${album}"`, { cacheKey });
+      }
+    }
+  } catch (error) {
+    logger.log("Animated art: cache read error", error);
   }
+
+  logger.log(`Animated art: fetching for "${artist} - ${album}"`, { cacheKey });
 
   const params = new URLSearchParams({
     s: song,
@@ -274,20 +274,24 @@ const fetchArtworkUrl = async (
 
     const data: ArtworkResponse = await response.json();
 
-    artworkCache.set(cacheKey, {
-      videoUrl: data.videoUrl,
-      timestamp: Date.now(),
-    });
+    if (data.videoUrl) {
+      await storage.set(cacheKey, data.videoUrl);
+      logger.log(`Animated art: cached "${artist} - ${album}"`, { cacheKey });
+    } else {
+      await storage.set(cacheKey, {
+        notFoundAt: Date.now(),
+      } satisfies NotFoundEntry);
+      logger.log(`Animated art: cached not-found for "${artist} - ${album}"`, {
+        cacheKey,
+      });
+    }
 
-    pruneCache();
-
-    logger.log("Animated art: API response", { hasVideo: !!data.videoUrl });
     return data.videoUrl;
   } catch (error) {
     logger.log("Animated art: fetch error", error);
     return null;
   }
-};
+}
 
 function createVideoElement(videoUrl: string): HTMLVideoElement {
   const video = document.createElement("video");
@@ -306,7 +310,7 @@ function createVideoElement(videoUrl: string): HTMLVideoElement {
   return video;
 }
 
-const injectAnimatedArt = (videoUrl: string): void => {
+function injectAnimatedArt(videoUrl: string): void {
   const thumbnail = document.querySelector("#thumbnail") as HTMLElement | null;
   if (!thumbnail) {
     logger.log("Animated art: #thumbnail not found");
@@ -323,46 +327,39 @@ const injectAnimatedArt = (videoUrl: string): void => {
   thumbnail.appendChild(video);
 
   logger.log("Animated art: video injected");
-};
+}
 
-const removeAnimatedArt = (): void => {
+function removeAnimatedArt(): void {
   const video = document.querySelector(`#${VIDEO_ELEMENT_ID}`);
-  if (video) {
-    const thumbnail = video.parentElement;
-    video.remove();
-    if (thumbnail) {
-      thumbnail.style.isolation = "";
-    }
-  }
-};
+  if (!video) return;
 
-const tryFetchArtwork = async (): Promise<void> => {
+  const thumbnail = video.parentElement;
+  video.remove();
+  if (thumbnail) {
+    thumbnail.style.isolation = "";
+  }
+}
+
+async function tryFetchArtwork(): Promise<void> {
   if (!isEnabled || !currentPlayerData) return;
 
   const { videoId, song, artist, duration } = currentPlayerData;
 
   if (videoId === lastProcessedVideoId) return;
 
-  // CRITICAL: Set immediately to prevent concurrent calls from both
-  // handlePlayerTime and handleApiResponse from proceeding
   lastProcessedVideoId = videoId;
 
   abortPendingFetch();
 
-  // Check if we have album from /next response
   let album = videoIdToAlbumMap.get(videoId);
-  let albumSource = "map";
-
-  // Fallback: extract from DOM with retry if not in map
   if (!album) {
     album = (await extractAlbumFromDOM()) || "";
-    albumSource = album ? "dom" : "none";
     if (album) {
       videoIdToAlbumMap.set(videoId, album);
     }
   }
 
-  logger.log("Animated art: fetching", { song, artist, album, albumSource, videoId });
+  logger.log("Animated art: fetching", { song, artist, album, videoId });
 
   pendingFetch = new AbortController();
 
@@ -377,20 +374,17 @@ const tryFetchArtwork = async (): Promise<void> => {
   } else {
     removeAnimatedArt();
   }
-};
+}
 
-const handlePlayerTime = (event: Event): void => {
+function handlePlayerTime(event: Event): void {
   if (!isEnabled) return;
 
   const customEvent = event as CustomEvent<PlayerData>;
   const { videoId, song, artist, duration } = customEvent.detail;
 
-  // Song changed - cleanup before processing new song
   if (currentPlayerData && currentPlayerData.videoId !== videoId) {
     logger.log("Animated art: song changed, clearing old artwork");
-
     abortPendingFetch();
-
     removeAnimatedArt();
     lastProcessedVideoId = null;
   }
@@ -398,9 +392,9 @@ const handlePlayerTime = (event: Event): void => {
   currentPlayerData = { videoId, song, artist, duration };
 
   tryFetchArtwork();
-};
+}
 
-const handleApiResponse = (event: Event): void => {
+function handleApiResponse(event: Event): void {
   if (!isEnabled) return;
 
   const customEvent = event as CustomEvent<{
@@ -411,14 +405,11 @@ const handleApiResponse = (event: Event): void => {
 
   const { url, requestJson, responseJson } = customEvent.detail;
 
-  // Only process /next responses for album extraction
   if (!url.includes("/youtubei/v1/next")) return;
 
   extractFromNextResponse(requestJson, responseJson);
-
-  // Try to fetch if we now have album for current player
   tryFetchArtwork();
-};
+}
 
 export function initialize(enabled: boolean): void {
   isEnabled = enabled;

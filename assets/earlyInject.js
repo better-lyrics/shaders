@@ -2,12 +2,7 @@
   const originalFetch = window.fetch;
 
   window.fetch = async function (input, init) {
-    const urlString =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url;
+    const urlString = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
     const shouldIntercept =
       urlString.startsWith("https://music.youtube.com/youtubei/v1/browse") ||
@@ -26,7 +21,7 @@
 
       cloned
         .json()
-        .then((responseJson) => {
+        .then(responseJson => {
           document.dispatchEvent(
             new CustomEvent("bls-send-response", {
               detail: { url: urlString, requestJson, responseJson },

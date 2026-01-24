@@ -1,5 +1,5 @@
 import browser from "webextension-polyfill";
-import type { GradientSettings } from "../../shared/constants/gradientSettings";
+import type { GradientSettings } from "@/shared/constants/gradientSettings";
 
 interface MessageHandlers {
   onSettingsUpdate: (settings: GradientSettings) => Promise<void>;

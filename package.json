@@ -1,7 +1,7 @@
 {
   "name": "better-lyrics-shaders",
   "displayName": "Better Lyrics Shaders",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Add beautiful gradient effects to YouTube Music",
   "author": "Boidu",
   "scripts": {
@@ -15,7 +15,8 @@
     "package:firefox": "plasmo package --target=firefox-mv2",
     "package:edge": "plasmo package --target=edge-mv3",
     "lint:fix": "biome lint --write && biome format --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack": "bun run lint:fix && bun run typecheck && bun run build && bun run package"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
@@ -37,7 +38,12 @@
     "typescript": "^5.9.3"
   },
   "manifest": {
-    "host_permissions": ["https://music.youtube.com/*", "https://i.ytimg.com/*", "https://*.googleusercontent.com/*", "$PLASMO_PUBLIC_ARTWORK_HOST"],
+    "host_permissions": [
+      "https://music.youtube.com/*",
+      "https://i.ytimg.com/*",
+      "https://*.googleusercontent.com/*",
+      "$PLASMO_PUBLIC_ARTWORK_HOST"
+    ],
     "permissions": ["storage", "activeTab"],
     "web_accessible_resources": [
       {
