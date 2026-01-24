@@ -17,7 +17,7 @@ A browser extension that adds beautiful animated backgrounds to YouTube Music us
 ## Features
 
 - **Fluid Animated Backgrounds**: Album artwork transforms into smooth, warped visuals using Kawarp
-- **Animated Album Art**: Displays Apple Music-style animated album artwork when available
+- **Animated Album Art**: Displays animated album artwork (video loops) when available
 - **Audio Reactive**: Beat detection syncs effects with music for a pulsing, dynamic experience
 - **Real-time Configuration**: Adjust settings and see changes instantly via the popup
 - **Persistent Settings**: Configuration saved automatically across sessions
@@ -147,7 +147,7 @@ Build outputs:
 
 - Not all songs have animated artwork available
 - Ensure "Animated Album Art" is enabled in settings
-- The feature queries an external API for availability
+- The feature queries [artwork.boidu.dev](https://github.com/boidushya/artwork.boidu.dev) for availability
 
 ## Tech Stack
 
@@ -162,4 +162,4 @@ GPL-3.0 License. See [LICENSE](LICENSE) for details.
 
 ## Credits
 
-Built with [Kawarp](https://kawarp.boidu.dev) and the [Plasmo](https://www.plasmo.com/) framework.
+Built with [Kawarp](https://kawarp.boidu.dev), [Plasmo](https://www.plasmo.com/), and [artwork.boidu.dev](https://github.com/boidushya/artwork.boidu.dev).

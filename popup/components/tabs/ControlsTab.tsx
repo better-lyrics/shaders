@@ -92,7 +92,7 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             label="Animated Album Art"
             value={settings.enableAnimatedArt}
             onChange={value => onToggleChange("enableAnimatedArt", value)}
-            hint="Displays animated album artwork (Apple Music video loops) when available, replacing the static album thumbnail in the player bar."
+            hint="Displays animated album artwork (video loops) when available, replacing the static album thumbnail in the player bar."
           />
 
           <ControlSlider
