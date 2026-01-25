@@ -300,7 +300,17 @@ function createVideoElement(videoUrl: string): HTMLVideoElement {
   video.autoplay = true;
   video.loop = true;
   video.playsInline = true;
-  video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;";
+  video.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" +
+    "opacity:0;transition:opacity 500ms ease-in;";
+
+  video.addEventListener(
+    "canplay",
+    () => {
+      video.style.opacity = "1";
+    },
+    { once: true }
+  );
 
   const source = document.createElement("source");
   source.src = videoUrl;
