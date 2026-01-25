@@ -47,8 +47,10 @@ const handlePlaybackStateChange = (isPlaying: boolean): void => {
 
   if (isPlaying) {
     kawarpManager.resumeKawarp();
+    animatedArtManager.resumeAnimatedArt();
   } else {
     kawarpManager.pauseKawarp();
+    animatedArtManager.pauseAnimatedArt();
   }
 };
 

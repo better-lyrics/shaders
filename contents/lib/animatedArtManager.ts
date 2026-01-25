@@ -329,8 +329,12 @@ function injectAnimatedArt(videoUrl: string): void {
   logger.log("Animated art: video injected");
 }
 
+function getVideoElement(): HTMLVideoElement | null {
+  return document.querySelector(`#${VIDEO_ELEMENT_ID}`);
+}
+
 function removeAnimatedArt(): void {
-  const video = document.querySelector(`#${VIDEO_ELEMENT_ID}`);
+  const video = getVideoElement();
   if (!video) return;
 
   const thumbnail = video.parentElement;
@@ -444,4 +448,20 @@ export function cleanup(): void {
   lastProcessedVideoId = null;
   videoIdToAlbumMap.clear();
   isEnabled = false;
+}
+
+export function pauseAnimatedArt(): void {
+  const video = getVideoElement();
+  if (video) {
+    video.pause();
+    logger.log("Animated art: paused");
+  }
+}
+
+export function resumeAnimatedArt(): void {
+  const video = getVideoElement();
+  if (video) {
+    video.play();
+    logger.log("Animated art: resumed");
+  }
 }
