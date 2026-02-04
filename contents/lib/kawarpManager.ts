@@ -196,6 +196,40 @@ const getVideoIdFromUrl = (): string | null => {
   return url.searchParams.get("v");
 };
 
+const getHqFallbackUrl = (src: string): string | null => {
+  const match = src.match(/i\.ytimg\.com\/vi\/([^/]+)\//);
+  if (!match) return null;
+  return `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg`;
+};
+
+const placeholderCache = new Map<string, string>();
+
+const resolveImageUrl = (url: string): Promise<string> => {
+  if (!url.includes("i.ytimg.com/vi/")) return Promise.resolve(url);
+
+  const cached = placeholderCache.get(url);
+  if (cached) return Promise.resolve(cached);
+
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth === 120 && img.naturalHeight === 90) {
+        const fallback = getHqFallbackUrl(url);
+        if (fallback) {
+          logger.log("Detected default YouTube thumbnail placeholder, using hqdefault fallback");
+          placeholderCache.set(url, fallback);
+          resolve(fallback);
+          return;
+        }
+      }
+      placeholderCache.set(url, url);
+      resolve(url);
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+};
+
 const getAlbumArtUrl = (): string | null => {
   const songImage = document.querySelector("#song-image img") as HTMLImageElement;
   if (songImage?.src && !songImage.src.startsWith("data:") && songImage.naturalHeight > 0) {
@@ -350,8 +384,9 @@ export const createKawarp = async (
   state.lastSettings = { ...settings };
   state.lastMultipliers = { ...multipliers };
 
-  const albumArtUrl = getAlbumArtUrl();
+  let albumArtUrl = getAlbumArtUrl();
   if (albumArtUrl) {
+    albumArtUrl = await resolveImageUrl(albumArtUrl);
     try {
       await loadImageSafely(state.instance, albumArtUrl);
       state.currentImageUrl = albumArtUrl;
@@ -499,8 +534,11 @@ export const updateKawarpImage = async (location: string = "player"): Promise<vo
 
   if (!state.instance || !state.container) return;
 
-  const albumArtUrl = getAlbumArtUrl();
+  let albumArtUrl = getAlbumArtUrl();
   if (!albumArtUrl || albumArtUrl === state.currentImageUrl) return;
+
+  albumArtUrl = await resolveImageUrl(albumArtUrl);
+  if (albumArtUrl === state.currentImageUrl) return;
 
   if (state.isTransitioning) {
     logger.log(`Transition in progress for ${location}, queueing image:`, albumArtUrl);
