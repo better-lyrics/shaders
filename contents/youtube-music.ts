@@ -1,5 +1,6 @@
 import type { PlasmoCSConfig } from "plasmo";
 import { logger } from "@/shared/utils/logger";
+import * as animatedArtManager from "./lib/animatedArtManager";
 import * as audioAnalysis from "./lib/audioAnalysis";
 import * as gradientController from "./lib/gradientController";
 import * as kawarpManager from "./lib/kawarpManager";
@@ -30,6 +31,10 @@ const initializeApp = async (): Promise<void> => {
         gradientSettings: gradientController.getSettings(),
       };
     },
+    getCacheInfo: animatedArtManager.getCacheInfo,
+    getCacheEntries: animatedArtManager.getCacheEntries,
+    importAnimatedArtCache: animatedArtManager.setCacheEntries,
+    clearAnimatedArtCache: animatedArtManager.clearCache,
   });
 
   audioAnalysis.initializeAudioAnalysis();

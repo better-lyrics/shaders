@@ -5,7 +5,28 @@ const API_ENDPOINT = "https://artwork.boidu.dev";
 const VIDEO_ELEMENT_ID = "bls-video";
 const NOT_FOUND_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
-const storage = new Storage();
+const storage = new Storage({ area: "local" });
+
+const MIGRATION_FLAG_KEY = "animatedArtMigrationV2Complete";
+
+async function migrateStaleSyncCache(): Promise<void> {
+  try {
+    const flag = await storage.get<boolean>(MIGRATION_FLAG_KEY);
+    if (flag) return;
+
+    const allSync = await chrome.storage.sync.get(null);
+    const staleKeys = Object.keys(allSync).filter(key => key.startsWith("bls_"));
+
+    if (staleKeys.length > 0) {
+      await chrome.storage.sync.remove(staleKeys);
+      logger.log(`Animated art: migrated ${staleKeys.length} stale cache entries out of sync storage`);
+    }
+
+    await storage.set(MIGRATION_FLAG_KEY, true);
+  } catch (error) {
+    logger.log("Animated art: migration error", error);
+  }
+}
 
 interface PlayerData {
   videoId: string;
@@ -28,6 +49,11 @@ interface NotFoundEntry {
 }
 
 type CachedArtwork = string | NotFoundEntry;
+
+export interface CacheInfo {
+  count: number;
+  sizeBytes: number;
+}
 
 interface LongBylineRun {
   text: string;
@@ -425,8 +451,9 @@ function handleApiResponse(event: Event): void {
   tryFetchArtwork();
 }
 
-export function initialize(enabled: boolean): void {
+export async function initialize(enabled: boolean): Promise<void> {
   isEnabled = enabled;
+  await migrateStaleSyncCache();
 
   if (enabled) {
     document.addEventListener("bls-send-player-time", handlePlayerTime);
@@ -458,6 +485,109 @@ export function cleanup(): void {
   lastProcessedVideoId = null;
   videoIdToAlbumMap.clear();
   isEnabled = false;
+}
+
+function isValidVideoUrl(value: string): boolean {
+  if (value.length === 0) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isValidCachedArtwork(value: unknown): value is CachedArtwork {
+  if (typeof value === "string") return isValidVideoUrl(value);
+  if (typeof value !== "object" || value === null) return false;
+  const maybe = value as { notFoundAt?: unknown };
+  if (typeof maybe.notFoundAt !== "number") return false;
+  if (!Number.isFinite(maybe.notFoundAt)) return false;
+  if (maybe.notFoundAt <= 0 || maybe.notFoundAt > Date.now()) return false;
+  return true;
+}
+
+export async function setCacheEntries(entries: Record<string, unknown>): Promise<{ imported: number }> {
+  try {
+    const valid: Record<string, CachedArtwork> = {};
+
+    for (const [key, value] of Object.entries(entries)) {
+      if (!key.startsWith("bls_")) continue;
+      if (!isValidCachedArtwork(value)) continue;
+      valid[key] = value;
+    }
+
+    const keys = Object.keys(valid);
+    if (keys.length === 0) {
+      return { imported: 0 };
+    }
+
+    await chrome.storage.local.set(valid);
+    logger.log(`Animated art: imported ${keys.length} cache entries`);
+    return { imported: keys.length };
+  } catch (error) {
+    logger.log("Animated art: setCacheEntries error", error);
+    return { imported: 0 };
+  }
+}
+
+export async function getCacheEntries(): Promise<Record<string, CachedArtwork>> {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const entries: Record<string, CachedArtwork> = {};
+
+    for (const [key, value] of Object.entries(all)) {
+      if (!key.startsWith("bls_")) continue;
+      entries[key] = value as CachedArtwork;
+    }
+
+    return entries;
+  } catch (error) {
+    logger.log("Animated art: getCacheEntries error", error);
+    return {};
+  }
+}
+
+export async function getCacheInfo(): Promise<CacheInfo> {
+  try {
+    const all = await chrome.storage.local.get(null);
+    let count = 0;
+    let sizeBytes = 0;
+
+    for (const [key, value] of Object.entries(all)) {
+      if (!key.startsWith("bls_")) continue;
+      count += 1;
+      sizeBytes += key.length + JSON.stringify(value).length;
+    }
+
+    return { count, sizeBytes };
+  } catch (error) {
+    logger.log("Animated art: getCacheInfo error", error);
+    return { count: 0, sizeBytes: 0 };
+  }
+}
+
+export async function clearCache(): Promise<{ cleared: number }> {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const keysToRemove = Object.keys(all).filter(key => key.startsWith("bls_"));
+
+    if (keysToRemove.length > 0) {
+      await chrome.storage.local.remove(keysToRemove);
+    }
+
+    logger.log(`Animated art: cleared ${keysToRemove.length} cache entries`);
+
+    lastProcessedVideoId = null;
+    if (isEnabled && currentPlayerData) {
+      tryFetchArtwork();
+    }
+
+    return { cleared: keysToRemove.length };
+  } catch (error) {
+    logger.log("Animated art: clearCache error", error);
+    return { cleared: 0 };
+  }
 }
 
 export function pauseAnimatedArt(): void {

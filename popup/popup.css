@@ -614,3 +614,100 @@ body {
   border-color: rgba(255, 255, 255, 0.3);
   color: white;
 }
+
+.cache-overview {
+  margin-top: 24px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cache-overview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cache-overview__title {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cache-overview__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cache-overview__action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  border: none;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cache-overview__action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.cache-overview__action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cache-overview__action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cache-overview__action--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+}
+
+.cache-overview__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cache-overview__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.cache-overview__label {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cache-overview__dots {
+  flex-grow: 1;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.cache-overview__value {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

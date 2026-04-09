@@ -1,5 +1,6 @@
 import React from "react";
 import { GradientSettings, defaultSettings } from "@/popup/types";
+import { CacheOverview } from "../CacheOverview";
 import { ControlSlider } from "../ControlSlider";
 import { ControlToggle } from "../ControlToggle";
 
@@ -181,6 +182,8 @@ export const ControlsTab: React.FC<ControlsTabProps> = ({
             </>
           )}
         </div>
+
+        <CacheOverview />
 
         <div className="controls-actions">
           <button onClick={onImport} className="action-button import-button" title="Import Settings">

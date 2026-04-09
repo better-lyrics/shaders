@@ -210,7 +210,7 @@ export const initializeSettings = async (): Promise<GradientSettings> => {
   gradientSettings = await storage.loadGradientSettings();
   logger.setEnabled(gradientSettings.showLogs);
   audioAnalysis.setPlaybackStateCallback(handlePlaybackStateChange);
-  animatedArtManager.initialize(gradientSettings.enableAnimatedArt);
+  await animatedArtManager.initialize(gradientSettings.enableAnimatedArt);
   return gradientSettings;
 };
 
