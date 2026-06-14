@@ -1,30 +1,40 @@
 import { Storage } from "@plasmohq/storage";
+import browser from "webextension-polyfill";
 import { logger } from "@/shared/utils/logger";
 
 const API_ENDPOINT = "https://artwork.boidu.dev";
 const VIDEO_ELEMENT_ID = "bls-video";
 const NOT_FOUND_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+const ALLOWED_VIDEO_HOSTS = new Set(["mvod.itunes.apple.com"]);
 
 const storage = new Storage({ area: "local" });
 
 const MIGRATION_FLAG_KEY = "animatedArtMigrationV2Complete";
 
 async function migrateStaleSyncCache(): Promise<void> {
+  let attempted = false;
   try {
     const flag = await storage.get<boolean>(MIGRATION_FLAG_KEY);
     if (flag) return;
+    attempted = true;
 
-    const allSync = await chrome.storage.sync.get(null);
+    const allSync = await browser.storage.sync.get(null);
     const staleKeys = Object.keys(allSync).filter(key => key.startsWith("bls_"));
 
     if (staleKeys.length > 0) {
-      await chrome.storage.sync.remove(staleKeys);
+      await browser.storage.sync.remove(staleKeys);
       logger.log(`Animated art: migrated ${staleKeys.length} stale cache entries out of sync storage`);
     }
-
-    await storage.set(MIGRATION_FLAG_KEY, true);
   } catch (error) {
     logger.log("Animated art: migration error", error);
+  } finally {
+    if (attempted) {
+      try {
+        await storage.set(MIGRATION_FLAG_KEY, true);
+      } catch (error) {
+        logger.log("Animated art: failed to persist migration flag", error);
+      }
+    }
   }
 }
 
@@ -491,7 +501,8 @@ function isValidVideoUrl(value: string): boolean {
   if (value.length === 0) return false;
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:";
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_VIDEO_HOSTS.has(parsed.host);
   } catch {
     return false;
   }
@@ -522,7 +533,7 @@ export async function setCacheEntries(entries: Record<string, unknown>): Promise
       return { imported: 0 };
     }
 
-    await chrome.storage.local.set(valid);
+    await browser.storage.local.set(valid);
     logger.log(`Animated art: imported ${keys.length} cache entries`);
     return { imported: keys.length };
   } catch (error) {
@@ -533,7 +544,7 @@ export async function setCacheEntries(entries: Record<string, unknown>): Promise
 
 export async function getCacheEntries(): Promise<Record<string, CachedArtwork>> {
   try {
-    const all = await chrome.storage.local.get(null);
+    const all = await browser.storage.local.get(null);
     const entries: Record<string, CachedArtwork> = {};
 
     for (const [key, value] of Object.entries(all)) {
@@ -550,7 +561,7 @@ export async function getCacheEntries(): Promise<Record<string, CachedArtwork>> 
 
 export async function getCacheInfo(): Promise<CacheInfo> {
   try {
-    const all = await chrome.storage.local.get(null);
+    const all = await browser.storage.local.get(null);
     let count = 0;
     let sizeBytes = 0;
 
@@ -569,11 +580,11 @@ export async function getCacheInfo(): Promise<CacheInfo> {
 
 export async function clearCache(): Promise<{ cleared: number }> {
   try {
-    const all = await chrome.storage.local.get(null);
+    const all = await browser.storage.local.get(null);
     const keysToRemove = Object.keys(all).filter(key => key.startsWith("bls_"));
 
     if (keysToRemove.length > 0) {
-      await chrome.storage.local.remove(keysToRemove);
+      await browser.storage.local.remove(keysToRemove);
     }
 
     logger.log(`Animated art: cleared ${keysToRemove.length} cache entries`);

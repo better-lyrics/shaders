@@ -17,9 +17,17 @@ const sendMessage = async <T>(action: string, payload?: Record<string, unknown>)
   }
 };
 
+const formatLocalDate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 export const useCacheInfo = () => {
   const [cacheInfo, setCacheInfo] = useState<CacheInfo>({ count: 0, sizeBytes: 0 });
   const [isClearing, setIsClearing] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const response = await sendMessage<CacheInfo>("getCacheInfo");
@@ -28,9 +36,13 @@ export const useCacheInfo = () => {
 
   const clear = useCallback(async () => {
     setIsClearing(true);
-    await sendMessage<{ cleared: number }>("clearAnimatedArtCache");
-    await refresh();
-    setIsClearing(false);
+    setLastError(null);
+    try {
+      await sendMessage<{ cleared: number }>("clearAnimatedArtCache");
+      await refresh();
+    } finally {
+      setIsClearing(false);
+    }
   }, [refresh]);
 
   const importCache = useCallback(async (): Promise<number> => {
@@ -51,7 +63,7 @@ export const useCacheInfo = () => {
           const parsedCacheFile = JSON.parse(text);
 
           if (!parsedCacheFile.entries || typeof parsedCacheFile.entries !== "object") {
-            alert("Invalid cache file format");
+            setLastError("Invalid cache file format");
             resolve(0);
             return;
           }
@@ -60,9 +72,10 @@ export const useCacheInfo = () => {
             entries: parsedCacheFile.entries,
           });
           await refresh();
+          setLastError(null);
           resolve(response?.imported ?? 0);
         } catch (error) {
-          alert("Error reading cache file");
+          setLastError("Error reading cache file");
           console.error("Cache import error:", error);
           resolve(0);
         }
@@ -87,7 +100,7 @@ export const useCacheInfo = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `better-lyrics-shaders-cache-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `better-lyrics-shaders-cache-${formatLocalDate(new Date())}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -102,6 +115,7 @@ export const useCacheInfo = () => {
     count: cacheInfo.count,
     sizeBytes: cacheInfo.sizeBytes,
     isClearing,
+    lastError,
     refresh,
     clear,
     exportCache,
