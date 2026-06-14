@@ -110,12 +110,6 @@ jobs:
           name: firefox-build
           path: build/firefox-mv2-prod
 
-      - name: Upload Edge build
-        uses: actions/upload-artifact@v4
-        with:
-          name: edge-build
-          path: build/edge-mv3-prod
-
   publish-chrome:
     needs: release
     runs-on: ubuntu-latest
@@ -226,55 +220,9 @@ jobs:
           name: firefox-release-asset
           path: build/signed-firefox/firefox-v${{ env.RELEASE_VERSION }}.xpi
 
-  publish-edge:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: v${{ needs.release.outputs.version }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.x"
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Download Edge build
-        uses: actions/download-artifact@v4
-        with:
-          name: edge-build
-          path: build/edge-mv3-prod
-
-      - name: Zip Edge artifact
-        run: |
-          cd build/edge-mv3-prod
-          zip -r ../edge-v${{ needs.release.outputs.version }}.zip .
-
-      - name: Upload Edge Zip for release
-        uses: actions/upload-artifact@v4
-        with:
-          name: edge-release-asset
-          path: build/edge-v${{ needs.release.outputs.version }}.zip
-
-      - name: Publish to Edge Add-ons
-        if: github.event.inputs.is_canary == 'false'
-        env:
-          CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-          API_KEY: ${{ secrets.EDGE_API_KEY }}
-          PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-        run: bun tooling/publish-edge.ts build/edge-v${{ needs.release.outputs.version }}.zip
-
   create-github-release:
     name: Create GitHub Release
-    needs: [release, publish-chrome, publish-edge, publish-firefox]
+    needs: [release, publish-chrome, publish-firefox]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -291,13 +239,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: firefox-release-asset
-          path: release-artifacts
-        continue-on-error: true
-
-      - name: Download Edge release asset
-        uses: actions/download-artifact@v4
-        with:
-          name: edge-release-asset
           path: release-artifacts
         continue-on-error: true
 
