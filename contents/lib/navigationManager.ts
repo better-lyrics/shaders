@@ -21,13 +21,23 @@ let hiddenTimestamp = 0;
 export const initialize = (updateCallback: UpdateCallback, navigationChangeCallback?: NavigationCallback): void => {
   let timeoutId: NodeJS.Timeout;
   let isProcessing = false;
+  let processingStartedAt = 0;
+  const PROCESSING_WATCHDOG_MS = 30000;
 
   debouncedUpdate = () => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      if (Date.now() - processingStartedAt > PROCESSING_WATCHDOG_MS) {
+        logger.error("debouncedUpdate stuck for >30s, force-resetting");
+        isProcessing = false;
+      } else {
+        return;
+      }
+    }
 
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       isProcessing = true;
+      processingStartedAt = Date.now();
       Promise.resolve(updateCallback()).finally(() => {
         isProcessing = false;
       });
@@ -48,50 +58,30 @@ const setupSongImageObserver = (): void => {
 
   songImageObserver = new MutationObserver(mutations => {
     for (const mutation of mutations) {
-      if (
-        (mutation.type === "attributes" && mutation.attributeName === "src") ||
-        (mutation.type === "childList" && mutation.addedNodes.length > 0)
-      ) {
-        debouncedUpdate?.();
-        break;
-      }
+      if (mutation.type !== "attributes" || mutation.attributeName !== "src") continue;
+      const target = mutation.target;
+      if (!(target instanceof Element)) continue;
+      if (!target.closest("#song-image, ytmusic-player-bar .thumbnail")) continue;
+      debouncedUpdate?.();
+      return;
     }
   });
 
-  const setupImageObservers = () => {
-    const songImage = document.getElementById("song-image");
-    if (songImage && songImageObserver) {
-      songImageObserver.observe(songImage, {
-        childList: true,
+  const attachObserver = () => {
+    const app = document.querySelector("ytmusic-app");
+    if (app && songImageObserver) {
+      songImageObserver.observe(app, {
         subtree: true,
         attributes: true,
         attributeFilter: ["src"],
       });
-    }
-
-    const playerBarThumbnail = document.querySelector("ytmusic-player-bar .thumbnail");
-    if (playerBarThumbnail && songImageObserver) {
-      songImageObserver.observe(playerBarThumbnail, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["src"],
-      });
-    }
-  };
-
-  const waitForSongImage = () => {
-    const songImage = document.getElementById("song-image");
-    const playerBar = document.querySelector("ytmusic-player-bar");
-    if ((songImage || playerBar) && songImageObserver) {
-      setupImageObservers();
       waitForSongImageTimeoutId = null;
     } else {
-      waitForSongImageTimeoutId = window.setTimeout(waitForSongImage, 1000);
+      waitForSongImageTimeoutId = window.setTimeout(attachObserver, 1000);
     }
   };
 
-  waitForSongImage();
+  attachObserver();
 };
 
 const setupNavigationListener = (): void => {

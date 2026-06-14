@@ -686,6 +686,12 @@ body {
   gap: 6px;
 }
 
+.cache-overview__error {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: rgb(239, 68, 68);
+}
+
 .cache-overview__row {
   display: flex;
   align-items: center;

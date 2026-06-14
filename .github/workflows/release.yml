@@ -1,0 +1,253 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New version number. 3 digits for a release (e.g. 1.2.0), 4 digits for a canary (e.g. 1.2.0.1-canary)."
+        required: true
+      is_canary:
+        description: "Canary (pre-release) build?"
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ github.event.inputs.version }}
+    steps:
+      - name: Validate version format
+        run: |
+          IS_CANARY='${{ github.event.inputs.is_canary }}'
+          VERSION='${{ github.event.inputs.version }}'
+
+          if [[ "$IS_CANARY" == "true" ]]; then
+            if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "::error::Canary releases must use a 4-digit version (e.g. 1.2.0.1 or 1.2.0.1-canary)."
+              exit 1
+            fi
+          else
+            if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Full releases must use a 3-digit version (e.g. 1.2.0)."
+              exit 1
+            fi
+          fi
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Update version
+        run: bun tooling/update-version.ts ${{ github.event.inputs.version }}
+
+      - name: Build all targets
+        run: bun run build
+
+      - name: Stage version bump
+        id: stage
+        run: |
+          git add package.json
+          if ! git diff --staged --quiet; then
+            echo "changes_exist=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit version bump
+        if: steps.stage.outputs.changes_exist == 'true'
+        uses: planetscale/ghcommit-action@v0.2.19
+        with:
+          commit_message: "Release version ${{ github.event.inputs.version }}"
+          repo: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ github.ref_name }}
+          git reset --hard origin/${{ github.ref_name }}
+          git tag -a "v${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
+
+      - name: Upload Chrome build
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-build
+          path: build/chrome-mv3-prod
+
+      - name: Upload Firefox build
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-build
+          path: build/firefox-mv2-prod
+
+  publish-chrome:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download Chrome build
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-build
+          path: build/chrome-mv3-prod
+
+      - name: Zip Chrome artifact
+        run: |
+          cd build/chrome-mv3-prod
+          zip -r ../chrome-v${{ needs.release.outputs.version }}.zip .
+
+      - name: Upload Chrome Zip for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-release-asset
+          path: build/chrome-v${{ needs.release.outputs.version }}.zip
+
+      - name: Publish to Chrome Web Store
+        if: github.event.inputs.is_canary == 'false'
+        env:
+          EXTENSION_ID: ${{ secrets.GOOGLE_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ secrets.GOOGLE_PUBLISHER_ID }}
+          CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: bun tooling/publish-chrome.ts build/chrome-v${{ needs.release.outputs.version }}.zip
+
+  publish-firefox:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+      FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+      RELEASE_VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Download Firefox build
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-build
+          path: build/firefox-mv2-prod
+
+      - name: Install web-ext
+        run: npm install -g web-ext
+
+      - name: Sign Firefox Add-on (Canary, unlisted)
+        if: github.event.inputs.is_canary == 'true'
+        run: |
+          web-ext sign --channel=unlisted \
+                       --api-key="$FIREFOX_JWT_ISSUER" \
+                       --api-secret="$FIREFOX_JWT_SECRET" \
+                       --artifacts-dir=build/signed-firefox \
+                       --source-dir=build/firefox-mv2-prod
+
+      - name: Sign and publish Firefox Add-on (Listed)
+        if: github.event.inputs.is_canary == 'false'
+        run: |
+          web-ext sign --channel=listed \
+                       --api-key="$FIREFOX_JWT_ISSUER" \
+                       --api-secret="$FIREFOX_JWT_SECRET" \
+                       --upload-source-code \
+                       --artifacts-dir=build/signed-firefox \
+                       --source-dir=build/firefox-mv2-prod
+
+      - name: Rename signed artifact
+        run: |
+          ARTIFACT_DIR=build/signed-firefox
+          SIGNED_FILE=$(find $ARTIFACT_DIR -name "*.xpi")
+          if [ -n "$SIGNED_FILE" ]; then
+            mv "$SIGNED_FILE" "$ARTIFACT_DIR/firefox-v${{ env.RELEASE_VERSION }}.xpi"
+          else
+            echo "::error::Signed .xpi file not found!"
+            exit 1
+          fi
+
+      - name: Upload Firefox XPI for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-release-asset
+          path: build/signed-firefox/firefox-v${{ env.RELEASE_VERSION }}.xpi
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [release, publish-chrome, publish-firefox]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Chrome release asset
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-release-asset
+          path: release-artifacts
+        continue-on-error: true
+
+      - name: Download Firefox release asset
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-release-asset
+          path: release-artifacts
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "release-artifacts/*"
+          tag: "v${{ needs.release.outputs.version }}"
+          name: "v${{ needs.release.outputs.version }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: ${{ github.event.inputs.is_canary == 'true' }}
+          draft: true

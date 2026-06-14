@@ -11,7 +11,7 @@ const formatBytes = (bytes: number): string => {
 };
 
 export const CacheOverview: React.FC = () => {
-  const { count, sizeBytes, isClearing, clear, exportCache, importCache } = useCacheInfo();
+  const { count, sizeBytes, isClearing, lastError, clear, exportCache, importCache } = useCacheInfo();
 
   return (
     <div className="cache-overview">
@@ -70,6 +70,7 @@ export const CacheOverview: React.FC = () => {
           <span className="cache-overview__value">{formatBytes(sizeBytes)}</span>
         </div>
       </div>
+      {lastError && <p className="cache-overview__error">{lastError}</p>}
     </div>
   );
 };
