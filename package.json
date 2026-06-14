@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
-    "@plasmohq/edge-addons-api": "^1.2.1",
     "@types/chrome": "0.0.245",
     "@types/node": "20.5.9",
     "@types/react": "18.2.21",

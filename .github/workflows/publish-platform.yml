@@ -6,7 +6,7 @@ on:
       platform:
         description: "Platform to publish to"
         type: choice
-        options: [chrome, edge, firefox]
+        options: [chrome, firefox]
         required: true
       version:
         description: "Version to publish (e.g. 1.2.0, must match an existing tag)"
@@ -71,7 +71,6 @@ jobs:
           case "${{ inputs.platform }}" in
             chrome) echo "build_dir=build/chrome-mv3-prod" >> $GITHUB_OUTPUT ;;
             firefox) echo "build_dir=build/firefox-mv2-prod" >> $GITHUB_OUTPUT ;;
-            edge) echo "build_dir=build/edge-mv3-prod" >> $GITHUB_OUTPUT ;;
           esac
 
       - name: Download original build artifact
@@ -92,7 +91,6 @@ jobs:
           case "${{ inputs.platform }}" in
             chrome) bun run build ;;
             firefox) bun run build:firefox ;;
-            edge) bun run build:edge ;;
           esac
 
       - name: Publish to Chrome Web Store
@@ -106,16 +104,6 @@ jobs:
         run: |
           cd build/chrome-mv3-prod && zip -r "../chrome-v${{ inputs.version }}.zip" . && cd -
           bun tooling/publish-chrome.ts "build/chrome-v${{ inputs.version }}.zip"
-
-      - name: Publish to Edge Add-ons
-        if: inputs.platform == 'edge'
-        env:
-          CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-          API_KEY: ${{ secrets.EDGE_API_KEY }}
-          PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-        run: |
-          cd build/edge-mv3-prod && zip -r "../edge-v${{ inputs.version }}.zip" . && cd -
-          bun tooling/publish-edge.ts "build/edge-v${{ inputs.version }}.zip"
 
       - name: Install web-ext
         if: inputs.platform == 'firefox'
