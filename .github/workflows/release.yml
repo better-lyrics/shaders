@@ -68,6 +68,9 @@ jobs:
       - name: Update version
         run: bun tooling/update-version.ts ${{ github.event.inputs.version }}
 
+      - name: Configure Firefox artwork host
+        run: echo 'PLASMO_PUBLIC_ARTWORK_HOST=https://artwork.boidu.dev/*' > .env.firefox
+
       - name: Build all targets
         run: bun run build
 
