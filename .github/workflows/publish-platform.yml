@@ -84,6 +84,10 @@ jobs:
           run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure Firefox artwork host
+        if: steps.download.outcome != 'success'
+        run: echo 'PLASMO_PUBLIC_ARTWORK_HOST=https://artwork.boidu.dev/*' > .env.firefox
+
       - name: Rebuild extension (fallback)
         if: steps.download.outcome != 'success'
         run: |
