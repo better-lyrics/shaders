@@ -1,9 +1,10 @@
-import { Storage } from "@plasmohq/storage";
-import browser from "webextension-polyfill";
+import { ARTWORK_API_ENDPOINT } from "@/shared/constants/artworkApi";
 import { ANIMATED_ART_VIDEO_ID } from "@/shared/constants/mediaElements";
 import { logger } from "@/shared/utils/logger";
+import { Storage } from "@plasmohq/storage";
+import browser from "webextension-polyfill";
+import { getToken } from "./artworkToken";
 
-const API_ENDPOINT = "https://artwork.boidu.dev";
 const NOT_FOUND_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const ALLOWED_VIDEO_HOSTS = new Set(["mvod.itunes.apple.com"]);
 
@@ -298,10 +299,11 @@ async function fetchArtworkUrl(
     al: album,
   });
 
-  const url = `${API_ENDPOINT}?${params.toString()}`;
+  const url = `${ARTWORK_API_ENDPOINT}?${params.toString()}`;
 
   try {
-    const response = await fetch(url, { signal });
+    const token = await getToken();
+    const response = await fetch(url, token ? { signal, headers: { Authorization: `Bearer ${token}` } } : { signal });
 
     if (!response.ok) {
       logger.log("Animated art: API error", response.status);
