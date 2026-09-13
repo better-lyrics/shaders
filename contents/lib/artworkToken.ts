@@ -78,8 +78,8 @@ async function requestMintedToken(challenge: PowChallenge, solution: PowSolution
       body: JSON.stringify({ challenge, solution }),
     });
     if (!response.ok) return null;
-    const data = (await response.json()) as { token?: unknown };
-    return typeof data.token === "string" ? data.token : null;
+    const mintResponse = (await response.json()) as { token?: unknown };
+    return typeof mintResponse.token === "string" ? mintResponse.token : null;
   } catch (error) {
     logger.log("Artwork token: mint request failed", error);
     return null;
