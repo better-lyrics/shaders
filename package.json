@@ -43,7 +43,7 @@
   "manifest": {
     "host_permissions": [
       "https://music.youtube.com/*",
-      "https://i.ytimg.com/*",
+      "https://*.ytimg.com/*",
       "https://*.googleusercontent.com/*",
       "$PLASMO_PUBLIC_ARTWORK_HOST"
     ],
