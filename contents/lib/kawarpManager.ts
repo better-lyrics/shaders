@@ -619,10 +619,10 @@ export const createKawarp = async (
     : `
       --sidebar: 240px;
       position: absolute;
-      top: -64px;
+      top: calc(-1 * var(--ytmusic-nav-bar-height, 64px));
       left: calc(-1 * var(--sidebar));
       width: calc(100% + var(--sidebar));
-      height: calc(100% + 128px);
+      height: calc(100% + var(--ytmusic-nav-bar-height, 64px) + var(--ytmusic-player-bar-height, 72px));
       pointer-events: none;
       z-index: -2;
       background-color: #000;
@@ -647,10 +647,10 @@ export const createKawarp = async (
     : `
       --sidebar: 240px;
       position: absolute;
-      top: -64px;
+      top: calc(-1 * var(--ytmusic-nav-bar-height, 64px));
       left: calc(-1 * var(--sidebar));
       width: calc(100% + var(--sidebar));
-      height: calc(100% + 128px);
+      height: calc(100% + var(--ytmusic-nav-bar-height, 64px) + var(--ytmusic-player-bar-height, 72px));
       pointer-events: none;
       z-index: -1;
       opacity: 0;
