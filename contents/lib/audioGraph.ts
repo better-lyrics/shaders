@@ -9,12 +9,16 @@ import {
   publishSharedAudioBus,
   readSharedAudioBus,
 } from "./audioBridge";
+import { createBassOnsetDetector } from "./bassOnset";
 
 const ANALYSIS_INTERVAL = 100;
 const MIN_VOLUME_FOR_ANALYSIS = 0.005;
 const INIT_RETRY_MS = 1000;
-const ANALYSER_FFT_SIZE = 1024;
-const ANALYSER_SMOOTHING = 0.8;
+const ANALYSER_FFT_SIZE = 2048;
+const ANALYSER_SMOOTHING = 0.3;
+const BASS_LOW_HZ = 40;
+const BASS_HIGH_HZ = 150;
+const MIN_BASS_DB = -70;
 
 interface GraphState {
   context: AudioContext | null;
@@ -22,6 +26,9 @@ interface GraphState {
   source: MediaElementAudioSourceNode | null;
   element: HTMLMediaElement | null;
   dataArray: Uint8Array<ArrayBuffer> | null;
+  spectrum: Float32Array<ArrayBuffer> | null;
+  isLoud: boolean;
+  lastBeat: { isBeat: boolean; speedMultiplier: number; scaleMultiplier: number } | null;
   rafId: number | null;
   initTimeoutId: number | null;
   resumeContextHandler: (() => Promise<void>) | null;
@@ -36,6 +43,9 @@ const state: GraphState = {
   source: null,
   element: null,
   dataArray: null,
+  spectrum: null,
+  isLoud: false,
+  lastBeat: null,
   rafId: null,
   initTimeoutId: null,
   resumeContextHandler: null,
@@ -50,6 +60,8 @@ interface ElementCapture {
 }
 
 const elementCaptures = new WeakMap<HTMLMediaElement, ElementCapture | null>();
+
+const bassOnset = createBassOnsetDetector();
 
 const currentElement = (): HTMLMediaElement | null => document.querySelector(PLAYER_MEDIA_SELECTOR);
 
@@ -92,6 +104,8 @@ const buildAnalyser = (context: AudioContext, source: MediaElementAudioSourceNod
 
   state.analyser = analyser;
   state.dataArray = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+  state.spectrum = new Float32Array(new ArrayBuffer(analyser.frequencyBinCount * Float32Array.BYTES_PER_ELEMENT));
+  bassOnset.reset();
 };
 
 const ownContext = (): AudioContext => {
@@ -189,9 +203,21 @@ const initialize = (): void => {
   }
 };
 
+const measureBassEnergy = (analyser: AnalyserNode, spectrum: Float32Array<ArrayBuffer>): number => {
+  analyser.getFloatFrequencyData(spectrum);
+  const binHz = analyser.context.sampleRate / analyser.fftSize;
+  const firstBin = Math.max(1, Math.floor(BASS_LOW_HZ / binHz));
+  const lastBin = Math.min(spectrum.length - 1, Math.ceil(BASS_HIGH_HZ / binHz));
+  let energy = 0;
+  for (let bin = firstBin; bin <= lastBin; bin++) {
+    if (spectrum[bin] > MIN_BASS_DB) energy += 10 ** (spectrum[bin] / 10);
+  }
+  return energy;
+};
+
 const analyzeAudioFrame = (timestamp: number): void => {
   const settings = state.settings;
-  if (!state.analyser || !state.dataArray || !state.element || !settings) {
+  if (!state.analyser || !state.dataArray || !state.spectrum || !state.element || !settings) {
     state.rafId = null;
     return;
   }
@@ -215,17 +241,30 @@ const analyzeAudioFrame = (timestamp: number): void => {
       }
     }
 
-    const isBeat = peak > threshold;
-    const scaleBoost = settings.kawarpAudioScaleBoost;
-
-    postAudioMessage({
-      type: "bls-audio-beat",
-      isBeat: settings.audioResponsive && isBeat,
-      speedMultiplier: settings.audioResponsive && isBeat ? settings.audioSpeedMultiplier : 1,
-      scaleMultiplier: settings.audioResponsive && isBeat ? 1 + scaleBoost / 100 : 1,
-    });
-
+    state.isLoud = peak > threshold;
     state.lastAnalysisTime = timestamp;
+  }
+
+  const pulse = bassOnset.update(
+    measureBassEnergy(state.analyser, state.spectrum),
+    timestamp,
+    settings.audioBeatThreshold
+  );
+  const isBeat = settings.audioResponsive && state.isLoud;
+  const beat = {
+    isBeat,
+    speedMultiplier: isBeat ? settings.audioSpeedMultiplier : 1,
+    scaleMultiplier: settings.audioResponsive ? 1 + (settings.kawarpAudioScaleBoost / 100) * pulse : 1,
+  };
+  const last = state.lastBeat;
+  if (
+    !last ||
+    last.isBeat !== beat.isBeat ||
+    last.speedMultiplier !== beat.speedMultiplier ||
+    last.scaleMultiplier !== beat.scaleMultiplier
+  ) {
+    postAudioMessage({ type: "bls-audio-beat", ...beat });
+    state.lastBeat = beat;
   }
 
   state.rafId = requestAnimationFrame(analyzeAudioFrame);
@@ -236,6 +275,9 @@ const startAnalysis = (settings: AnalysisSettings): void => {
   if (!state.isInitialized) initialize();
   if (state.rafId !== null) cancelAnimationFrame(state.rafId);
   state.lastAnalysisTime = 0;
+  state.isLoud = false;
+  state.lastBeat = null;
+  bassOnset.reset();
   state.rafId = requestAnimationFrame(analyzeAudioFrame);
 };
 
