@@ -1012,10 +1012,10 @@ export const pauseKawarp = (location?: string): void => {
 export const resumeKawarp = (location?: string): void => {
   const resumeForLocation = (loc: string) => {
     const state = getKawarpState(loc);
-    if (!state.instance || !state.isVisible || !state.isPaused) return;
+    if (!state.instance || !state.isPaused) return;
 
     state.isPaused = false;
-    state.instance.start();
+    if (state.isVisible) state.instance.start();
 
     const settings = state.lastSettings ?? DEFAULT_GRADIENT_SETTINGS;
     state.targetSpeed = modeMotion(state, settings, state.lastMultipliers ?? DEFAULT_DYNAMIC_MULTIPLIERS).speed;
