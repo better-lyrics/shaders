@@ -16,6 +16,7 @@ const MIN_VOLUME_FOR_ANALYSIS = 0.005;
 const INIT_RETRY_MS = 1000;
 const ANALYSER_FFT_SIZE = 2048;
 const ANALYSER_SMOOTHING = 0.3;
+const LOUDNESS_WINDOW_SAMPLES = 512;
 const BASS_LOW_HZ = 40;
 const BASS_HIGH_HZ = 150;
 const MIN_BASS_DB = -70;
@@ -103,7 +104,7 @@ const buildAnalyser = (context: AudioContext, source: MediaElementAudioSourceNod
   }
 
   state.analyser = analyser;
-  state.dataArray = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+  state.dataArray = new Uint8Array(new ArrayBuffer(LOUDNESS_WINDOW_SAMPLES));
   state.spectrum = new Float32Array(new ArrayBuffer(analyser.frequencyBinCount * Float32Array.BYTES_PER_ELEMENT));
   bassOnset.reset();
 };

@@ -895,7 +895,7 @@ export const updateKawarpSpeed = (
     }
 
     const motion = modeMotion(state, settings, multipliers);
-    if (speedChanged || (isVideoMode(state) && scaleChanged)) {
+    if (speedChanged) {
       state.instance.animationSpeed = state.isPaused ? 0 : motion.speed;
       state.currentSpeed = state.isPaused ? 0 : motion.speed;
       state.targetSpeed = state.currentSpeed;
