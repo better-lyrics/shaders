@@ -45,6 +45,7 @@ export interface GradientSettings {
   showOnBrowsePages: boolean;
   // Animated album art
   enableAnimatedArt: boolean;
+  enableSpotifyCanvas: boolean;
 }
 
 export interface DynamicMultipliers {
@@ -100,6 +101,7 @@ export const DEFAULT_GRADIENT_SETTINGS: GradientSettings = {
   showOnBrowsePages: false,
   // Animated album art
   enableAnimatedArt: true,
+  enableSpotifyCanvas: false,
 };
 
 export const DEFAULT_DYNAMIC_MULTIPLIERS: DynamicMultipliers = {

@@ -45,6 +45,9 @@
       "https://music.youtube.com/*",
       "https://i.ytimg.com/*",
       "https://*.googleusercontent.com/*",
+      "https://open.spotify.com/*",
+      "https://api-partner.spotify.com/*",
+      "https://regional.canvasstore.slnode.spicylyrics.org/*",
       "$PLASMO_PUBLIC_ARTWORK_HOST"
     ],
     "permissions": [

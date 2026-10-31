@@ -2,12 +2,13 @@ import { ARTWORK_API_ENDPOINT } from "@/shared/constants/artworkApi";
 import { ANIMATED_ART_VIDEO_ID, ANIMATED_ART_VIDEO_SELECTOR } from "@/shared/constants/mediaElements";
 import { setCorsMediaSource } from "@/shared/utils/corsMediaSource";
 import { logger } from "@/shared/utils/logger";
+import { type LookupSpotifyCanvasResponse, normalize } from "@/shared/utils/spotifyMatcher";
 import { Storage } from "@plasmohq/storage";
 import browser from "webextension-polyfill";
 import { getToken } from "./artworkToken";
 
 const NOT_FOUND_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
-const ALLOWED_VIDEO_HOSTS = new Set(["mvod.itunes.apple.com"]);
+const ALLOWED_VIDEO_HOSTS = new Set(["mvod.itunes.apple.com", "canvaz.scdn.co"]);
 
 const storage = new Storage({ area: "local" });
 
@@ -88,9 +89,15 @@ interface PlaylistContent {
 }
 
 let isEnabled = false;
+let isSpotifyCanvasEnabled = false;
+let listenersAttached = false;
 let currentPlayerData: PlayerData | null = null;
 let lastProcessedVideoId: string | null = null;
 let pendingFetch: AbortController | null = null;
+
+function isAnySourceEnabled(): boolean {
+  return isEnabled || isSpotifyCanvasEnabled;
+}
 
 const videoIdToAlbumMap = new Map<string, string>();
 
@@ -254,8 +261,82 @@ function getCacheKey(artist: string, album: string): string {
   return `bls_${artist}|${album}`;
 }
 
+function getCanvasCacheKey(artist: string, song: string): string {
+  return `bls_canvas_${normalize(artist)}|${normalize(song)}`;
+}
+
 function isNotFoundEntry(value: CachedArtwork): value is NotFoundEntry {
   return typeof value === "object" && "notFoundAt" in value;
+}
+
+async function fetchSpotifyCanvasUrl(
+  song: string,
+  artist: string,
+  duration: number,
+  album: string,
+  signal: AbortSignal
+): Promise<string | null> {
+  const cacheKey = getCanvasCacheKey(artist, song);
+
+  try {
+    const cached = await storage.get<CachedArtwork>(cacheKey);
+
+    if (cached !== undefined) {
+      if (typeof cached === "string") {
+        logger.log(`Spotify Canvas: cache hit for "${artist} - ${song}"`, { cacheKey });
+        return cached;
+      }
+
+      if (isNotFoundEntry(cached)) {
+        const isExpired = Date.now() - cached.notFoundAt >= NOT_FOUND_EXPIRY_MS;
+        if (!isExpired) {
+          logger.log(`Spotify Canvas: cache hit (not found) for "${artist} - ${song}"`, { cacheKey });
+          return null;
+        }
+        logger.log(`Spotify Canvas: not-found cache expired for "${artist} - ${song}"`, { cacheKey });
+      }
+    }
+  } catch (error) {
+    logger.log("Spotify Canvas: cache read error", error);
+  }
+
+  logger.log(`Spotify Canvas: looking up "${artist} - ${song}"`, { cacheKey });
+
+  try {
+    const response = (await browser.runtime.sendMessage({
+      action: "lookupSpotifyCanvas",
+      track: {
+        title: song,
+        artist,
+        album,
+        durationMs: Math.round(duration * 1000),
+      },
+    })) as LookupSpotifyCanvasResponse | undefined;
+
+    if (signal.aborted) return null;
+
+    if (response?.error) {
+      logger.log("Spotify Canvas: background lookup error, skipping cache");
+      return null;
+    }
+
+    const videoUrl = response?.videoUrl && isValidVideoUrl(response.videoUrl) ? response.videoUrl : null;
+
+    if (videoUrl) {
+      await storage.set(cacheKey, videoUrl);
+      logger.log(`Spotify Canvas: cached "${artist} - ${song}"`, { cacheKey, videoUrl });
+    } else {
+      await storage.set(cacheKey, {
+        notFoundAt: Date.now(),
+      } satisfies NotFoundEntry);
+      logger.log(`Spotify Canvas: cached not-found for "${artist} - ${song}"`, { cacheKey });
+    }
+
+    return videoUrl;
+  } catch (error) {
+    logger.log("Spotify Canvas: fetch error", error);
+    return null;
+  }
 }
 
 async function fetchArtworkUrl(
@@ -391,7 +472,7 @@ function removeAnimatedArt(): void {
 }
 
 async function tryFetchArtwork(): Promise<void> {
-  if (!isEnabled || !currentPlayerData) return;
+  if (!isAnySourceEnabled() || !currentPlayerData) return;
 
   const { videoId, song, artist, duration } = currentPlayerData;
 
@@ -409,15 +490,33 @@ async function tryFetchArtwork(): Promise<void> {
     }
   }
 
-  logger.log("Animated art: fetching", { song, artist, album, videoId });
+  logger.log("Animated art: fetching", {
+    song,
+    artist,
+    album,
+    videoId,
+    spotifyCanvas: isSpotifyCanvasEnabled,
+    animatedArt: isEnabled,
+  });
 
-  pendingFetch = new AbortController();
+  const controller = new AbortController();
+  pendingFetch = controller;
 
-  const videoUrl = await fetchArtworkUrl(song, artist, duration, album, pendingFetch.signal);
+  let videoUrl: string | null = null;
 
-  pendingFetch = null;
+  if (isSpotifyCanvasEnabled) {
+    videoUrl = await fetchSpotifyCanvasUrl(song, artist, duration, album, controller.signal);
+  }
 
-  if (!isEnabled || videoId !== currentPlayerData?.videoId) return;
+  if (!videoUrl && isEnabled && !controller.signal.aborted) {
+    videoUrl = await fetchArtworkUrl(song, artist, duration, album, controller.signal);
+  }
+
+  if (pendingFetch === controller) {
+    pendingFetch = null;
+  }
+
+  if (controller.signal.aborted || !isAnySourceEnabled() || videoId !== currentPlayerData?.videoId) return;
 
   if (videoUrl) {
     injectAnimatedArt(videoUrl);
@@ -427,8 +526,6 @@ async function tryFetchArtwork(): Promise<void> {
 }
 
 function handlePlayerTime(event: Event): void {
-  if (!isEnabled) return;
-
   const customEvent = event as CustomEvent<PlayerData>;
   const { videoId, song, artist, duration } = customEvent.detail;
 
@@ -441,12 +538,12 @@ function handlePlayerTime(event: Event): void {
 
   currentPlayerData = { videoId, song, artist, duration };
 
+  if (!isAnySourceEnabled()) return;
+
   tryFetchArtwork();
 }
 
 function handleApiResponse(event: Event): void {
-  if (!isEnabled) return;
-
   const customEvent = event as CustomEvent<{
     url: string;
     requestJson: unknown;
@@ -458,36 +555,52 @@ function handleApiResponse(event: Event): void {
   if (!url.includes("/youtubei/v1/next")) return;
 
   extractFromNextResponse(requestJson, responseJson);
+  if (!isAnySourceEnabled()) return;
   tryFetchArtwork();
 }
 
-export async function initialize(enabled: boolean): Promise<void> {
-  isEnabled = enabled;
-  await migrateStaleSyncCache();
-
-  if (enabled) {
-    document.addEventListener("bls-send-player-time", handlePlayerTime);
-    document.addEventListener("bls-send-response", handleApiResponse);
-  }
+function attachListeners(): void {
+  if (listenersAttached) return;
+  document.addEventListener("bls-send-player-time", handlePlayerTime);
+  document.addEventListener("bls-send-response", handleApiResponse);
+  listenersAttached = true;
 }
 
-export function setEnabled(enabled: boolean): void {
-  const wasEnabled = isEnabled;
+export async function initialize(enabled: boolean, spotifyCanvasEnabled = false): Promise<void> {
   isEnabled = enabled;
+  isSpotifyCanvasEnabled = spotifyCanvasEnabled;
+  await migrateStaleSyncCache();
+  attachListeners();
+}
 
-  if (enabled && !wasEnabled) {
-    document.addEventListener("bls-send-player-time", handlePlayerTime);
-    document.addEventListener("bls-send-response", handleApiResponse);
-  } else if (!enabled && wasEnabled) {
-    cleanup();
+export function setEnabled(enabled: boolean, spotifyCanvasEnabled = isSpotifyCanvasEnabled): void {
+  const changed = isEnabled !== enabled || isSpotifyCanvasEnabled !== spotifyCanvasEnabled;
+  isEnabled = enabled;
+  isSpotifyCanvasEnabled = spotifyCanvasEnabled;
+
+  if (!changed) return;
+
+  attachListeners();
+  abortPendingFetch();
+  lastProcessedVideoId = null;
+
+  if (isAnySourceEnabled()) {
+    if (currentPlayerData) {
+      void tryFetchArtwork();
+    }
+  } else {
+    removeAnimatedArt();
   }
 }
 
 export function cleanup(): void {
   abortPendingFetch();
 
-  document.removeEventListener("bls-send-player-time", handlePlayerTime);
-  document.removeEventListener("bls-send-response", handleApiResponse);
+  if (listenersAttached) {
+    document.removeEventListener("bls-send-player-time", handlePlayerTime);
+    document.removeEventListener("bls-send-response", handleApiResponse);
+    listenersAttached = false;
+  }
 
   removeAnimatedArt();
 
@@ -495,6 +608,7 @@ export function cleanup(): void {
   lastProcessedVideoId = null;
   videoIdToAlbumMap.clear();
   isEnabled = false;
+  isSpotifyCanvasEnabled = false;
 }
 
 function isValidVideoUrl(value: string): boolean {
@@ -590,7 +704,7 @@ export async function clearCache(): Promise<{ cleared: number }> {
     logger.log(`Animated art: cleared ${keysToRemove.length} cache entries`);
 
     lastProcessedVideoId = null;
-    if (isEnabled && currentPlayerData) {
+    if (isAnySourceEnabled() && currentPlayerData) {
       tryFetchArtwork();
     }
 
