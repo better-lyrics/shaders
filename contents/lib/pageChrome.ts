@@ -5,7 +5,7 @@ const PLAYER_PAGE = '#layout[player-ui-state="PLAYER_PAGE_OPEN"]';
 const BROWSE_PAGE = '#layout:not([player-ui-state="PLAYER_PAGE_OPEN"], [player-ui-state="FULLSCREEN"])';
 const GLASS_BLUR = "25px";
 
-// :where() and YTM's own background tokens keep every theme rule, of any specificity, in charge.
+// Zero specificity, so any theme rule marked !important or setting YTM's tokens overrides these.
 const PLAYER_PAGE_CSS = `
   :where(${PLAYER_PAGE} :is(#nav-bar-background, #mini-guide-background)) {
     opacity: 0 !important;
@@ -19,7 +19,6 @@ const PLAYER_PAGE_CSS = `
   }
 `;
 
-// Glass navigation, sidebar and header dissolve adapted from the Lucid theme for Better Lyrics.
 const BROWSE_PAGE_CSS = `
   :where(${BROWSE_PAGE} #nav-bar-background) {
     --ytmusic-nav-bar: transparent;
