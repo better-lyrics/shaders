@@ -179,3 +179,5 @@ GPL-3.0 License. See [LICENSE](LICENSE) for details.
 ## Credits
 
 Built with [Kawarp](https://kawarp.boidu.dev), [Plasmo](https://www.plasmo.com/), and [artwork.boidu.dev](https://github.com/boidushya/artwork.boidu.dev).
+
+Thanks to [Drago](https://github.com/drago-oo) for letting us port the delicious bits of [Lucid](https://github.com/drago-oo/lucid-theme), their Better Lyrics theme, over to the browse pages.
