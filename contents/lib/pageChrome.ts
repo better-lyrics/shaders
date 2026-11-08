@@ -2,7 +2,7 @@ import type { GradientSettings } from "@/shared/constants/gradientSettings";
 
 const PAGE_CHROME_STYLE_ID = "bls-page-chrome-style";
 const PLAYER_PAGE = '#layout[player-ui-state="PLAYER_PAGE_OPEN"]';
-const BROWSE_PAGE = '#layout:not([player-ui-state="PLAYER_PAGE_OPEN"])';
+const BROWSE_PAGE = '#layout:not([player-ui-state="PLAYER_PAGE_OPEN"], [player-ui-state="FULLSCREEN"])';
 const GLASS_BLUR = "25px";
 
 // :where() and YTM's own background tokens keep every theme rule, of any specificity, in charge.
