@@ -5,6 +5,8 @@ const KAWARP_URL = "https://kawarp.betterlyrics.org/";
 const BETTER_LYRICS_URL = "https://betterlyrics.org";
 const REPOSITORY_URL = "https://github.com/better-lyrics/shaders";
 const DISCORD_URL = "https://discord.gg/UsHE3d5fWF";
+const DRAGO_URL = "https://github.com/drago-oo";
+const LUCID_URL = "https://github.com/drago-oo/lucid-theme";
 
 export const AboutTab: React.FC = () => (
   <div className="panel">
@@ -90,7 +92,15 @@ export const AboutTab: React.FC = () => (
         <a href="https://boidu.dev" target="_blank" rel="noopener noreferrer">
           Boidu
         </a>
-        , with thanks to everyone in the Better Lyrics community who has tested it and reported bugs.
+        , with thanks to everyone in the Better Lyrics community who has tested it and reported bugs. Thanks to{" "}
+        <a href={DRAGO_URL} target="_blank" rel="noopener noreferrer">
+          Drago
+        </a>{" "}
+        for letting us port the delicious bits of{" "}
+        <a href={LUCID_URL} target="_blank" rel="noopener noreferrer">
+          Lucid
+        </a>
+        , their Better Lyrics theme, over to the browse pages.
       </p>
     </div>
   </div>

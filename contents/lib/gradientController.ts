@@ -7,6 +7,7 @@ import { logger } from "@/shared/utils/logger";
 import * as animatedArtManager from "./animatedArtManager";
 import * as audioAnalysis from "./audioAnalysis";
 import * as kawarpManager from "./kawarpManager";
+import { syncPageChrome } from "./pageChrome";
 import * as pipManager from "./pipManager";
 import * as storage from "./storage";
 
@@ -161,6 +162,7 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
     gradientSettings.audioBeatThreshold !== settings.audioBeatThreshold;
 
   gradientSettings = settings;
+  syncPageChrome(settings);
 
   // Handle animated art toggle
   if (wasAnimatedArtEnabled !== settings.enableAnimatedArt) {
@@ -213,6 +215,7 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
 
 export const initializeSettings = async (): Promise<GradientSettings> => {
   gradientSettings = await storage.loadGradientSettings();
+  syncPageChrome(gradientSettings);
   logger.setEnabled(gradientSettings.showLogs);
   audioAnalysis.setPlaybackStateCallback(handlePlaybackStateChange);
   await animatedArtManager.initialize(gradientSettings.enableAnimatedArt);
