@@ -5,7 +5,7 @@ const PLAYER_PAGE = '#layout[player-ui-state="PLAYER_PAGE_OPEN"]';
 const BROWSE_PAGE = '#layout:not([player-ui-state="PLAYER_PAGE_OPEN"], [player-ui-state="FULLSCREEN"])';
 const GLASS_BLUR = "25px";
 
-// Zero specificity, so any theme rule marked !important or setting YTM's tokens overrides these.
+// Zero specificity, so a theme overrides these with !important or by setting the token on the same element.
 const PLAYER_PAGE_CSS = `
   :where(${PLAYER_PAGE} :is(#nav-bar-background, #mini-guide-background)) {
     opacity: 0 !important;
