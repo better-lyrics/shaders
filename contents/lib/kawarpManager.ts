@@ -16,6 +16,7 @@ import { videoMotion } from "@/shared/utils/videoSettings";
 import Kawarp, { type KawarpVideoOptions } from "@kawarp/core";
 import { isAdPlaying } from "./adState";
 import { brightnessForHighlight, measureArtworkHighlight, measureHighlightLuminance } from "./artworkBrightness";
+import { exceedsMaxTextureSize, isTextureSizeCappedByResistFingerprinting } from "./textureLimit";
 
 interface KawarpState {
   backdrop: HTMLDivElement | null;
@@ -285,8 +286,19 @@ const videoSourceOptions = (
   },
 });
 
-const isPlayable = (video: HTMLVideoElement | null): video is HTMLVideoElement =>
+const hasDecodedFrames = (video: HTMLVideoElement | null): video is HTMLVideoElement =>
   !!video && !video.error && video.videoWidth > 0;
+
+// Kawarp cannot upload a frame larger than MAX_TEXTURE_SIZE and renders black instead of throwing
+const isPlayable = (video: HTMLVideoElement | null): video is HTMLVideoElement =>
+  hasDecodedFrames(video) && !exceedsMaxTextureSize(video);
+
+export const isAnimatedArtBlockedByResistFingerprinting = (): boolean => {
+  if (!isTextureSizeCappedByResistFingerprinting() || isAdPlaying()) return false;
+  if (isPlayable(document.querySelector<HTMLVideoElement>(PLAYER_VIDEO_SELECTOR))) return false;
+  const animatedArt = document.querySelector<HTMLVideoElement>(ANIMATED_ART_VIDEO_SELECTOR);
+  return hasDecodedFrames(animatedArt) && exceedsMaxTextureSize(animatedArt);
+};
 
 const findPlayableVideo = (): HTMLVideoElement | null => {
   if (isAdPlaying()) return null;

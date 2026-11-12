@@ -11,6 +11,7 @@ interface MessageHandlers {
     albumArtUrl: string | null;
     animatedArtUrl: string | null;
     isAd: boolean;
+    animatedArtBlockedByResistFingerprinting: boolean;
   };
   getCacheInfo: () => Promise<CacheInfo>;
   getCacheEntries: () => Promise<Record<string, unknown>>;

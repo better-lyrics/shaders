@@ -28,13 +28,18 @@ const initializeApp = async (): Promise<void> => {
     getCurrentData: () => {
       const songInfo = messageHandler.getSongInfo();
       const animatedArt = animatedArtManager.getAnimatedArtState();
+      const gradientSettings = gradientController.getSettings();
       return {
         songTitle: songInfo.title,
         songAuthor: songInfo.author,
-        gradientSettings: gradientController.getSettings(),
+        gradientSettings,
         albumArtUrl: kawarpManager.getCurrentImageUrl(),
         animatedArtUrl: animatedArt.active ? animatedArt.videoUrl : null,
         isAd: adState.isAdPlaying(),
+        animatedArtBlockedByResistFingerprinting:
+          gradientSettings.enabled &&
+          gradientSettings.videoEnabled &&
+          kawarpManager.isAnimatedArtBlockedByResistFingerprinting(),
       };
     },
     getCacheInfo: animatedArtManager.getCacheInfo,
