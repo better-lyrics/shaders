@@ -156,6 +156,7 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
   const wasShowOnBrowsePages = gradientSettings.showOnBrowsePages;
   const wasPauseOnInactive = gradientSettings.pauseOnInactive;
   const wasAnimatedArtEnabled = gradientSettings.enableAnimatedArt;
+  const wasSpotifyCanvasEnabled = gradientSettings.enableSpotifyCanvas;
   const audioSettingsChanged =
     gradientSettings.audioSpeedMultiplier !== settings.audioSpeedMultiplier ||
     gradientSettings.kawarpAudioScaleBoost !== settings.kawarpAudioScaleBoost ||
@@ -164,9 +165,12 @@ export const updateGradientSettings = async (settings: GradientSettings): Promis
   gradientSettings = settings;
   syncPageChrome(settings);
 
-  // Handle animated art toggle
-  if (wasAnimatedArtEnabled !== settings.enableAnimatedArt) {
-    animatedArtManager.setEnabled(settings.enableAnimatedArt);
+  // Handle animated art / Spotify Canvas toggle
+  if (
+    wasAnimatedArtEnabled !== settings.enableAnimatedArt ||
+    wasSpotifyCanvasEnabled !== settings.enableSpotifyCanvas
+  ) {
+    animatedArtManager.setEnabled(settings.enableAnimatedArt, settings.enableSpotifyCanvas);
   }
 
   logger.setEnabled(settings.showLogs);
@@ -218,7 +222,7 @@ export const initializeSettings = async (): Promise<GradientSettings> => {
   syncPageChrome(gradientSettings);
   logger.setEnabled(gradientSettings.showLogs);
   audioAnalysis.setPlaybackStateCallback(handlePlaybackStateChange);
-  await animatedArtManager.initialize(gradientSettings.enableAnimatedArt);
+  await animatedArtManager.initialize(gradientSettings.enableAnimatedArt, gradientSettings.enableSpotifyCanvas);
   return gradientSettings;
 };
 

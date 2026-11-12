@@ -155,6 +155,7 @@ export const useGradientSettings = () => {
               "enabled",
               "pauseOnInactive",
               "enableAnimatedArt",
+              "enableSpotifyCanvas",
               "autoDimBrightArtwork",
               "videoEnabled",
               "videoAudioResponsive",

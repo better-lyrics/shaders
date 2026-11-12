@@ -22,6 +22,12 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ settings, onToggleChange
       onChange={value => onToggleChange("enableAnimatedArt", value)}
     />
     <ControlToggle
+      label="Spotify Canvas"
+      hint="Play looping Spotify Canvas videos instead of album art when available."
+      value={settings.enableSpotifyCanvas}
+      onChange={value => onToggleChange("enableSpotifyCanvas", value)}
+    />
+    <ControlToggle
       label="Show on browse pages"
       hint="Extends the effect to home and search. Costs performance."
       value={settings.showOnBrowsePages}
