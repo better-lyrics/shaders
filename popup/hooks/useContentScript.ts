@@ -10,6 +10,7 @@ interface ContentData {
   albumArtUrl: string | null;
   animatedArtUrl: string | null;
   isAd: boolean;
+  animatedArtBlockedByResistFingerprinting: boolean;
 }
 
 export const useContentScript = () => {
@@ -20,6 +21,7 @@ export const useContentScript = () => {
     albumArtUrl: null,
     animatedArtUrl: null,
     isAd: false,
+    animatedArtBlockedByResistFingerprinting: false,
   });
 
   const sendMessage = useCallback(async (action: string, payload?: Record<string, unknown>) => {
@@ -46,6 +48,7 @@ export const useContentScript = () => {
         albumArtUrl: response.albumArtUrl ?? null,
         animatedArtUrl: response.animatedArtUrl ?? null,
         isAd: response.isAd ?? false,
+        animatedArtBlockedByResistFingerprinting: response.animatedArtBlockedByResistFingerprinting ?? false,
       });
     }
   }, [sendMessage]);

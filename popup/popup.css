@@ -843,3 +843,170 @@ body {
   font-size: 11px;
   line-height: 1.45;
 }
+
+.fingerprinting-notice {
+  display: grid;
+  grid-template-rows: 0fr;
+  flex: none;
+  margin: 0 12px;
+  opacity: 0;
+  transition: grid-template-rows 220ms var(--ease), opacity 160ms var(--ease);
+}
+
+.fingerprinting-notice--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.fingerprinting-notice__clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fingerprinting-notice__content {
+  margin-bottom: 9px;
+  border-radius: var(--r-card);
+  background: rgba(255, 181, 71, 0.1);
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.fingerprinting-notice__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--r-card);
+  background: transparent;
+  color: #ffb547;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease);
+}
+
+.fingerprinting-notice__toggle:hover {
+  background: var(--l1);
+}
+
+.fingerprinting-notice__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.fingerprinting-notice__title {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.fingerprinting-notice__chevron {
+  display: block;
+  flex: none;
+  transition: transform 220ms var(--ease);
+}
+
+.fingerprinting-notice__content--expanded .fingerprinting-notice__chevron {
+  transform: rotate(180deg);
+}
+
+.fingerprinting-notice__details {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 220ms var(--ease), opacity 160ms var(--ease);
+}
+
+.fingerprinting-notice__content--expanded .fingerprinting-notice__details {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.fingerprinting-notice__body {
+  padding: 0 10px 10px;
+}
+
+.fingerprinting-notice__text {
+  margin: 0 0 6px;
+}
+
+.fingerprinting-notice__steps {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.fingerprinting-notice__steps li + li {
+  margin-top: 2px;
+}
+
+.copy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: var(--l2);
+  color: var(--text);
+  font: inherit;
+  vertical-align: baseline;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease);
+}
+
+.copy-chip:hover {
+  background: var(--l3);
+}
+
+.copy-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.copy-chip__value {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.copy-chip__icons {
+  display: inline-grid;
+  flex: none;
+  color: var(--text-2);
+}
+
+.copy-chip__icon {
+  grid-area: 1 / 1;
+  transition: opacity 220ms var(--ease), filter 220ms var(--ease), transform 220ms var(--ease);
+}
+
+.copy-chip__icons[data-state="idle"] .copy-chip__icon--copy,
+.copy-chip__icons[data-state="copied"] .copy-chip__icon--check {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+
+.copy-chip__icons[data-state="idle"] .copy-chip__icon--check,
+.copy-chip__icons[data-state="copied"] .copy-chip__icon--copy {
+  opacity: 0;
+  filter: blur(2px);
+  transform: scale(0.25);
+}
+
+.copy-chip__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -11,6 +11,7 @@ import {
   LookTab,
   MotionTab,
   NowPlaying,
+  ResistFingerprintingNotice,
   TabBar,
   VideoTab,
 } from "./components";
@@ -19,7 +20,15 @@ import { GradientSettings, SettingsTab, defaultSettings } from "./types";
 
 const Popup: React.FC = () => {
   const { activeTab, selectTab, isAboutOpen, toggleAbout } = useTabState();
-  const { songTitle, songAuthor, albumArtUrl, animatedArtUrl, isAd, updateGradientSettings } = useContentScript();
+  const {
+    songTitle,
+    songAuthor,
+    albumArtUrl,
+    animatedArtUrl,
+    isAd,
+    animatedArtBlockedByResistFingerprinting,
+    updateGradientSettings,
+  } = useContentScript();
 
   const {
     gradientSettings,
@@ -81,6 +90,8 @@ const Popup: React.FC = () => {
         enabled={gradientSettings.enabled}
         onEnabledChange={value => handleToggleChange("enabled", value)}
       />
+
+      <ResistFingerprintingNotice open={animatedArtBlockedByResistFingerprinting} />
 
       {!isAboutOpen && <TabBar activeTab={activeTab} onTabChange={selectTab} />}
 
